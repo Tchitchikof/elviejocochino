@@ -4794,6 +4794,7 @@ const hsfx={
   bounce:()=>{ tone(260,150,0.09,'sine',0.09); noise(0.04,0.05); },
   throw:()=>{ noise(0.18,0.12); tone(500,900,0.14,'sine',0.07); },
   ouch:()=>{ tone(260,120,0.28,'sawtooth',0.1); tone(180,90,0.2,'square',0.06,0.05); },
+  snap:()=>{ tone(300,180,0.07,'square',0.08); tone(260,150,0.09,'square',0.08,0.08); },
   ko:()=>{ tone(220,70,0.5,'sawtooth',0.11); tone(120,50,0.5,'square',0.07,0.1); },
   shield:()=>{ [700,950,1250].forEach((f,i)=>tone(f,f,0.1,'triangle',0.08,i*0.06)); },
   block:()=>{ tone(900,300,0.2,'square',0.07); noise(0.1,0.08); },
@@ -5047,12 +5048,16 @@ function stepBall(dt){
         const o=p.owner; if(!o.shield){ o.shield=true; paintBar(o); }
         hsfx.shield(); popup('🛡 Shield!',o.x,o.H+0.7,o.z); burst(bo.x,1.2,bo.z,14,0x7fd6ff); removeBooster(false);
       }
+      if(suti&&suti.state!=='snap'&&Math.hypot(p.x-suti.x,p.z-suti.z)<SUTI_R){          // Suti spots it: any ball inside her reach is gone
+        p.state='caught'; suti.state='snap'; suti.snapT=0; suti.sx=suti.x; suti.sz=suti.z; suti.qx=p.x; suti.qz=p.z; hsfx.snap(); popup('Nom!',suti.x,2.8,suti.z); return;
+      }
       let hit=null;
       for(const c of squad(other(p.team))){ if(c.ko||!c.active) continue; if(Math.hypot(p.x-c.x,apz-c.z)<CH_R){ hit=c; break; } }
       if(hit){ applyHit(hit,p); killBall(p); S.ball=null; endTurn(S.over?1.5:(hit.stun>0?1.15:0.8)); return; }
       if(p.s>=p.L){ if(p.edge){ p.state='pop'; p.landT=0; burst(p.x,p.y,p.z,9,p.team==='P'?0x35c14a:0xe8302a); hsfx.bounce(); } else { p.state='land'; p.landT=0; } }
     } else if(p.landT>0.95){ killBall(p); S.ball=null; endTurn(0.55); }
   }
+  else if(p.state==='caught'){ if(suti.snapT>=0.17){ burst(p.x,p.y,p.z,14,p.team==='P'?0x35c14a:0xe8302a); killBall(p); S.ball=null; endTurn(0.55); } }
   else if(p.state==='pop'){
     p.landT+=dt; const k=Math.max(0,1-p.landT/0.14), big=p.dmg>1?1.3:1; p.mesh.scale.setScalar(Math.max(0.001,BALL_R*big*k*(1+0.35*(1-k)))); p.glow.material.opacity=k; if(p.gold) p.gold.material.opacity=k; p.sh.scale.setScalar(Math.max(0.01,0.7*k));
     if(p.landT>=0.14){ killBall(p); S.ball=null; endTurn(0.55); }
@@ -5137,7 +5142,7 @@ function resetMatch(){
       c.ring.material.color.setHex(side==='P'?C_P:C_E); c.ring.visible=true; c.bubble.visible=false; c.bar.style.display=''; paintBarQuiet(c);
     });
   });
-  $('score').textContent='Turn 0';
+  sutiReset(); $('score').textContent='Turn 0';
 }
 function paintBarQuiet(c){ c.bar.querySelectorAll('i').forEach((el,i)=>el.classList.toggle('on',i<c.hp)); c.bar.classList.remove('sh'); c.bar.classList.toggle('P',c.team==='P'); c.bar.classList.toggle('E',c.team==='E'); }
 function startPlay(){
@@ -5235,6 +5240,36 @@ function placeAll(dt){
 const arrow=new THREE.Mesh(new THREE.ConeBufferGeometry(0.42,0.85,4),new THREE.MeshBasicMaterial({color:C_P})); arrow.rotation.x=Math.PI; arrow.visible=false;
 { const g=new THREE.Group(); scene.add(arrow); }
 
+/* ---------------- Suti: roams the WHOLE court (both halves), faster and more erratic than in the teacher game, and eats any ball that gets within reach ---------------- */
+let suti=null; const SUTI_S=1.5, SUTI_SPD=7.6, SUTI_R=2.0;
+const sutiBounds=()=>({x0:-(HW-1.0),x1:HW-1.0,z0:ZF+1.0,z1:ZB-1.0});
+function sutiPick(w){ const b=sutiBounds(); for(let k=0;k<12;k++){ const x=rr(b.x0,b.x1), z=rr(b.z0,b.z1); if(Math.hypot(x-w.x,z-w.z)>3){ w.tx=x; w.tz=z; return; } } w.tx=rr(b.x0,b.x1); w.tz=rr(b.z0,b.z1); }
+function sutiReset(){ const w=suti; if(!w) return; const b=sutiBounds(); w.x=rr(b.x0,b.x1); w.z=rr(-2.5,2.5); w.state='walk'; w.wait=0; w.bob=0; w.mul=1.1; w.revT=0.8; w.yaw=0; w.ph=0; sutiPick(w); }
+function stepSuti(dt){
+  const w=suti; if(!w) return;
+  if(w.state==='snap'){
+    w.snapT+=dt; const u=Math.min(1,w.snapT/0.2); w.x=lerp(w.sx,w.qx,ease(u)); w.z=lerp(w.sz,w.qz,ease(u)); w.bob=Math.sin(u*Math.PI)*0.8;
+    w.yaw+=angDiff(w.yaw,Math.atan2(w.qx-w.sx,w.qz-w.sz))*Math.min(1,dt*20);
+    if(w.snapT>=0.45){ w.state='walk'; w.bob=0; w.wait=0; sutiPick(w); }
+    return;
+  }
+  const v=SUTI_SPD*w.mul; w.ph+=dt*(8+v*1.6);
+  if(w.wait>0){ w.wait-=dt; return; }
+  w.revT-=dt;
+  if(w.revT<=0){ w.revT=rr(0.35,1.2); const r=Math.random(); if(r<0.45){ sutiPick(w); w.mul=rr(0.95,1.45); } else if(r<0.6){ w.wait=rr(0.1,0.4); } }       // changes its mind all the time, doubles back, freezes
+  const dx=w.tx-w.x, dz=w.tz-w.z, d=Math.hypot(dx,dz), st=v*dt;
+  if(d<=st){ w.x=w.tx; w.z=w.tz; if(Math.random()<0.3) w.wait=rr(0.1,0.45); w.mul=Math.random()<0.2?1.7:rr(0.9,1.35); sutiPick(w); }
+  else { const wob=Math.sin(S.t*11+w.ph*0.1)*1.4*dt; w.x+=dx/d*st+(-dz/d)*wob; w.z+=dz/d*st+(dx/d)*wob; w.yaw+=angDiff(w.yaw,Math.atan2(dx,dz))*Math.min(1,dt*14); }
+  const b=sutiBounds(); w.x=clamp(w.x,b.x0,b.x1); w.z=clamp(w.z,b.z0,b.z1);
+}
+function placeSuti(){
+  const w=suti; if(!w) return; const m=S.mode, vis=(m!=='ready'); w.g.visible=w.sh.visible=vis; if(!vis) return;
+  const moving=(m==='play'||m==='win'||m==='lose')&&w.wait<=0&&w.state==='walk';
+  const sy=(moving?(1-Math.cos(w.ph*2))*0.07:0)+w.bob;
+  w.g.position.set(w.x,sy,w.z); w.g.rotation.y=w.yaw; w.body.rotation.set((moving?Math.sin(w.ph*2)*0.16:0)-w.bob*0.25,0,0);
+  w.sh.position.set(w.x,0.03,w.z); const ss=Math.max(0.5,0.95-sy*0.3); w.sh.scale.set(ss,ss,1);
+}
+
 /* ---------------- layout / camera: the same search as the teacher game ---------------- */
 const _pt=new THREE.Vector3(); const proj=(x,y,z)=>_pt.set(x,y,z).project(camera);
 function layout(){
@@ -5261,11 +5296,11 @@ const _cp=new THREE.Vector3();
 function update(dt){
   S.t+=dt; const m=S.mode;
   if(m==='play'){
-    stepChars(dt); stepFlow(dt); stepBall(dt); stepBooster(dt); updatePreview(); drawAim();
+    stepChars(dt); stepSuti(dt); stepFlow(dt); stepBall(dt); stepBooster(dt); updatePreview(); drawAim();
   } else if(m==='win'||m==='lose'){
-    S.overT+=dt; stepChars(dt); stepBooster(dt);
+    S.overT+=dt; stepChars(dt); stepSuti(dt); stepBooster(dt);
   }
-  placeAll(dt); updateBits(dt); updateConf(dt);
+  placeAll(dt); placeSuti(); updateBits(dt); updateConf(dt);
   S.camPos.lerp(S.runPos,1-Math.exp(-dt*6)); S.camTgt.lerp(S.runTgt,1-Math.exp(-dt*6));
   S.shake=Math.max(0,S.shake-dt); _cp.copy(S.camPos);
   if(S.shake>0){ _cp.x+=(Math.random()-0.5)*S.shake*0.9; _cp.z+=(Math.random()-0.5)*S.shake*0.9; }
@@ -5289,11 +5324,16 @@ async function boot(){
   loader=new THREE.FBXLoader();
   try{
     for(const id of ENEMY_IDS){ await buildChar(id); await yieldUI(); }
+    { const sTex=await loadTex(SUTI_TEX); sutiObj=loader.parse(b64buf(SUTI_FBX_B64),'');
+      sutiObj.traverse(n=>{ if(n.isSkinnedMesh||n.isMesh){ n.material=new THREE.MeshBasicMaterial({map:sTex,skinning:!!n.isSkinnedMesh}); n.frustumCulled=false; } });
+      sutiObj.scale.setScalar(SUTI_S);
+      suti={g:new THREE.Group(),body:new THREE.Group(),sh:makeShadow(0.95,0.95),x:0,z:0,tx:0,tz:0,yaw:0,ph:0,wait:0,mul:1.1,revT:1,bob:0,state:'walk',snapT:0,sx:0,sz:0,qx:0,qz:0};
+      suti.g.add(suti.body); suti.body.add(sutiObj); scene.add(suti.g); scene.add(suti.sh); sutiReset(); await yieldUI(); }
     const first=shuffle(POOL_IDS.slice()).slice(0,4);
     for(const id of first){ await buildChar(id); await yieldUI(); }
   }catch(err){ console.error(err); document.querySelector('#loading p').textContent='Could not load the characters. Reload to retry.'; throw err; }
   rollTeam(); layout(); resetMatch(); setMode('ready');
-  window.__dodge={hideAim,drawAim,placeHuman,idlePose,waveHi,walkPose,cheerPose,stunPose,koPose,mixPose,ARM_AIM,ARM_THROW,ARM_IDLE,qx,qy,qz,makeBall,makeGlow,get env(){return env},get arrow(){return arrow},ring,dots,S,update,startPlay,launch,aiThrow,finish,applyHit,all,get teamP(){return teamP;},get teamE(){return teamE;},camera,scene,renderer,get HW(){return HW;},spawnBooster,rollTeam,resetMatch,startTurn};
+  window.__dodge={get suti(){return suti;},hideAim,drawAim,placeHuman,idlePose,waveHi,walkPose,cheerPose,stunPose,koPose,mixPose,ARM_AIM,ARM_THROW,ARM_IDLE,qx,qy,qz,makeBall,makeGlow,get env(){return env},get arrow(){return arrow},ring,dots,S,update,startPlay,launch,aiThrow,finish,applyHit,all,get teamP(){return teamP;},get teamE(){return teamE;},camera,scene,renderer,get HW(){return HW;},spawnBooster,rollTeam,resetMatch,startTurn};
   window.dodgeReady=true;
   // the rest of the pool loads quietly while the title screen is showing
   (async()=>{ for(const id of POOL_IDS){ if(all[id]) continue; await new Promise(r=>setTimeout(r,350)); try{ await buildChar(id); }catch(e){ console.warn('dodge: could not load',id,e); } } })();
@@ -5315,7 +5355,7 @@ const META = {
   pato:   { l1:'SUTI AND THE', l2:'DUCK',   lose:'Face plant!', title:'Suti and the Duck',       key:'sutiBest',        factory:createPato,    cta:'Click or tap to jump', hint:'Space or ↑ also works', hp:'' },
   hall:   { l1:'THE TEACHER', l2:'EATS IT', lose:"Time's up!", title:'The Teacher Eats It', key:'hallBest',        factory:createHall,    cta:'Click or tap to play', hint:'Drag anywhere to aim, let go to throw. Up to 2 balls at once, and each can bounce once.', hp:'TERO', time:true },
   thomas: { l1:'THOMAS', l2:'SIMULATOR', lose:'Heartbroken…', title:'Thomas Simulator', key:'thomasBest', factory:createThomas, cta:'Click or tap to play', hint:'Move with the joystick, WASD or arrows. Keep the heart away from the girls, and stand still to be ignored.', hp:'❤️', time:true },
-  dodge:  { l1:'FRIENDS', l2:'DODGEBALL', lose:'You lose!', title:'Friends Dodgeball', key:'dodgeBest', factory:createDodge, cta:'Click or tap to play', hint:'Drag anywhere to aim, let go to throw. Hit the other team, grab the shield, and keep your friends standing.', hp:'', unit:' turns' },
+  dodge:  { l1:'FRIENDS', l2:'DODGEBALL', lose:'You lose!', title:'Friends Dodgeball', key:'dodgeBest', factory:createDodge, cta:'Click or tap to play', hint:'Drag anywhere to aim, let go to throw. Hit the other team, shoot the shield, and watch out: Suti eats any ball that gets close.', hp:'', unit:' turns' },
   office: { l1:'SHANI', l2:'QUITS',     lose:"Time's up!", title:'Shani Quits',       key:'officeBest',      factory:createOffice,  cta:'Click or tap to play', hint:'Move with the joystick, WASD or arrows', hp:'🔨', time:true }
 };
 const games = {}; let cur = null, busy = false;
@@ -5353,3 +5393,5 @@ window.hubReady=true;
 </script>
 </body>
 </html>
+
+<!-- dodgeball build, merged onto live version 1791190044-fe9c -->
