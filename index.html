@@ -4957,11 +4957,7 @@ function stepChars(dt){
   // keep everybody apart (and away from the ones lying on the floor), then inside their half
   list.forEach(c=>{
     if(!c.active||c.ko) return;
-    list.forEach(o=>{
-      if(o===c||!o.active||o.gone||o.team!==c.team) return;
-      const ex=c.x-o.x, ez=c.z-o.z, ed=Math.hypot(ex,ez), minD=o.ko?1.5:1.25;
-      if(ed<minD&&ed>0.001){ const push=(minD-ed)*(o.ko?1:0.5); c.x+=ex/ed*push; c.z+=ez/ed*push; }
-    });
+    // (characters no longer collide: they walk straight through each other)
     const b=bounds(c); c.x=clamp(c.x,b.x0,b.x1); c.z=clamp(c.z,b.z0,b.z1);
   });
 }
@@ -4984,7 +4980,7 @@ function makeBall(side,owner,mult){
 }
 function killBall(p){ scene.remove(p.mesh); scene.remove(p.sh); scene.remove(p.glow); if(p.gold) scene.remove(p.gold); p.sh.geometry.dispose(); p.glow.material.dispose(); if(p.gold) p.gold.material.dispose(); }
 function startTurn(){
-  S.turn++; S.side=S.turn%2===1?'P':'E'; S.phase='hold'; S.phaseT=0; S.hitThisTurn=false; hideAim();
+  S.turn++; S.side=S.turn%2===1?'P':'E'; S.phase='hold'; S.phaseT=0; S.lastTick=0; S.hitThisTurn=false; hideAim();
   const side=S.side, c=nextThrower(side); S.thrower=c; c.thr=-1; c.aimV=0.25;
   S.count[side]++;
   const power=(S.count[side]%3===0)&&Math.random()<POWER_CHANCE;
@@ -5003,11 +4999,26 @@ function updateHud(power){
   if(S.side==='P'){ hn.textContent=S.turn===1?'Drag back to aim, let go to throw':'Your turn: drag back to aim, let go to throw'; hn.classList.add('on'); } else { hn.textContent='Dodge! Enemy ball…'; hn.classList.add('on'); hn._t=setTimeout(()=>hn.classList.remove('on'),1800); }
 }
 function endTurn(delay){ if(S.demo){ S.demo.phase=3; S.demo.t=0; S.phase='none'; return; } S.phase='resolve'; S.phaseT=0; S.resolveDelay=delay; S.thrower.aimV=0; }
+const HOLD_MAX=10;
+function explodeHeld(c){            // held too long: the ball blows up in the thrower's hands, hurts them, and the turn passes
+  const B=S.ball; if(!B) return; const dmg=B.dmg, mult=B.mult;
+  hideAim(); S.aim&&(S.aim.on=false); c.aimV=0; c.shield=false;
+  fireBurst(c.x,1.3,c.z); burst(c.x,1.3,c.z,22,0xffd23a); popup('BOOM!',c.x,c.H+1.4,c.z);
+  killBall(B); S.ball=null; S.lastTick=0;
+  applyHit(c,{dmg,mult:1,x:c.x,z:c.z,team:other(c.team)});
+  S.shake=0.5; $('aimhint').classList.remove('on');
+  endTurn(1.3);
+}
 function stepFlow(dt){
   S.phaseT+=dt;
   if(S.phase==='hold'){
     const c=S.thrower;
-    if((S.side==='E'||S.auto)&&!S.demo){ S.aiT+=dt; c.aimV=Math.min(0.95,0.25+0.7*S.aiT/S.aiDelay); if(S.aiT>=S.aiDelay) aiThrow(c); }
+    if(!S.demo&&S.ball&&S.ball.state==='held'){
+      const left=HOLD_MAX-S.phaseT; S.ball.fuse=left;
+      const sec=Math.ceil(left); if(left<=3&&sec!==S.lastTick&&sec>=1){ S.lastTick=sec; popup(String(sec),c.x,c.H+1.1,c.z); hsfx.pick&&hsfx.pick(); }
+      if(left<=0) explodeHeld(c);
+    }
+    if((S.side==='E'||S.auto)&&!S.demo&&S.phase==='hold'){ S.aiT+=dt; c.aimV=Math.min(0.95,0.25+0.7*S.aiT/S.aiDelay); if(S.aiT>=S.aiDelay) aiThrow(c); }
   } else if(S.phase==='resolve'){
     if(S.phaseT>=S.resolveDelay){ if(S.over) finish(); else startTurn(); }
   }
@@ -5240,9 +5251,9 @@ body.selecting #hud{ opacity:1; } body.selecting #hud > div{ visibility:hidden; 
 #dgSel .hd b{ font-size:calc(var(--u)*15px); color:#ffb4a8; } #dgSel .dn .hd b{ color:#9af0b0; }
 #dgSel .hd b.big{ font-size:calc(var(--u)*22px); color:#fff1d6; -webkit-text-stroke:2px #3b2b4f; paint-order:stroke fill; text-shadow:0 3px 0 #3b2b4f; letter-spacing:.02em; }
 #dgSel .cnt{ font-size:calc(var(--u)*14px); background:rgba(0,0,0,.28); border-radius:99px; padding:1px 9px; font-variant-numeric:tabular-nums; }
-#dgSel .grid{ flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:minmax(0,1fr); gap:calc(var(--u)*5px); }
+#dgSel .grid{ flex:1; min-height:0; display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:calc(var(--u)*60px); gap:calc(var(--u)*5px); overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; touch-action:pan-y; align-content:start; scrollbar-width:thin; padding-right:2px; }
 #dgSel .cd{ position:relative; display:flex; align-items:center; gap:calc(var(--u)*6px); min-height:0; padding:calc(var(--u)*3px) calc(var(--u)*5px); border-radius:calc(var(--u)*12px); background:rgba(255,241,214,.1); border:2px solid transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; overflow:hidden; }
-#dgSel .up .cd{ cursor:default; pointer-events:none; }
+#dgSel .up .cd{ cursor:default; }
 #dgSel .cd img{ flex:0 0 auto; height:100%; max-height:calc(var(--u)*58px); aspect-ratio:1/1; object-fit:cover; border-radius:calc(var(--u)*9px); background:rgba(0,0,0,.25); }
 #dgSel .cd .inf{ flex:1; min-width:0; display:flex; flex-direction:column; gap:calc(var(--u)*2px); }
 #dgSel .cd .rw{ display:flex; align-items:center; gap:calc(var(--u)*5px); min-width:0; }
@@ -5250,6 +5261,8 @@ body.selecting #hud{ opacity:1; } body.selecting #hud > div{ visibility:hidden; 
 #dgSel .hr{ display:flex; align-items:center; gap:calc(var(--u)*6px); }
 #dgSel .su{ font:inherit; font-weight:800; font-size:calc(var(--u)*12px); letter-spacing:.04em; white-space:nowrap; line-height:1.1; flex:none; color:#06280f; background:#3ee06a; border:calc(var(--u)*2.5px) solid #fff; border-radius:99px; padding:calc(var(--u)*3px) calc(var(--u)*10px); cursor:pointer; box-shadow:0 3px 0 rgba(0,0,0,.4),0 0 calc(var(--u)*12px) rgba(62,224,106,.85); animation:suPulse 1.4s ease-in-out infinite; }
 @keyframes suPulse{ 50%{ transform:scale(1.06); } }
+#dgSel .su .sp{ width:calc(var(--u)*28px); height:calc(var(--u)*28px); border-radius:50%; object-fit:cover; background:#fff1d6; border:2px solid #fff; margin:calc(var(--u)*-6px) calc(var(--u)*6px) calc(var(--u)*-6px) calc(var(--u)*-8px); vertical-align:middle; box-sizing:border-box; }
+#dgSel .su{ display:inline-flex; align-items:center; } #dgSel .su.off .sp{ filter:grayscale(1) brightness(.8); }
 #dgSel .su.off{ background:#e5372b; color:#fff; box-shadow:0 3px 0 rgba(0,0,0,.4); animation:none; text-decoration:line-through; text-decoration-thickness:2px; } #dgSel .su.ro{ cursor:default; pointer-events:none; animation:none; font-size:calc(var(--u)*11px); padding:calc(var(--u)*3px) calc(var(--u)*9px); box-shadow:0 2px 0 rgba(0,0,0,.35); } #dgSel .su.rnd{ outline:2px dashed #fff1d6; outline-offset:2px; }
 #dgSel .cd .nm{ font-size:calc(var(--u)*14px); line-height:1.05; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #dgSel .cd .r{ display:flex; align-items:center; gap:calc(var(--u)*3px); }
@@ -5302,6 +5315,24 @@ function portraitURL(id){                    // a head-and-shoulders picture ren
   for(let y=0;y<SZ;y++) im.data.set(buf.subarray((SZ-1-y)*SZ*4,(SZ-y)*SZ*4),y*SZ*4);
   g2.putImageData(im,0,0); return portraits[id]=cv.toDataURL('image/png');
 }
+let sutiPort=null;
+function sutiPortrait(){ if(sutiPort!==null) return sutiPort; if(!suti||!suti.g) return ''; try{
+  const SZ=160; if(!portRT) portRT=new THREE.WebGLRenderTarget(SZ,SZ);
+  const everyone=Object.values(inst.P).concat(Object.values(inst.E)), saved=everyone.map(x=>[x.h.g.visible,x.h.sh.visible,x.h.stars.map(q=>q.visible)]);
+  everyone.forEach(x=>{ x.h.g.visible=false; x.h.sh.visible=false; x.h.stars.forEach(q=>q.visible=false); });
+  const sv=[suti.g.visible,suti.sh.visible,suti.g.position.clone(),suti.g.rotation.y,suti.body.rotation.x]; suti.g.visible=true; suti.sh.visible=false; suti.g.position.set(400,0,0); suti.g.rotation.y=0; suti.body.rotation.x=0; suti.g.updateMatrixWorld(true);
+  const bb=new THREE.Box3().setFromObject(suti.g), sz=bb.getSize(new THREE.Vector3()), ct=bb.getCenter(new THREE.Vector3());
+  const fy=bb.max.y-sz.y*0.3, s=Math.max(sz.y*0.62,sz.x*0.7), d=(s/0.9)/(2*Math.tan(THREE.MathUtils.degToRad(13)));
+  pcam.position.set(ct.x,fy,ct.z+d+sz.z*0.3); pcam.lookAt(ct.x,fy,ct.z); pcam.updateMatrixWorld();
+  const prevRT=renderer.getRenderTarget(), pc=new THREE.Color(), pa=renderer.getClearAlpha(); renderer.getClearColor(pc);
+  renderer.setRenderTarget(portRT); renderer.setClearColor(0x000000,0); renderer.clear(); renderer.render(scene,pcam);
+  const buf=new Uint8Array(SZ*SZ*4); renderer.readRenderTargetPixels(portRT,0,0,SZ,SZ,buf);
+  renderer.setRenderTarget(prevRT); renderer.setClearColor(pc,pa);
+  everyone.forEach((x,i)=>{ x.h.g.visible=saved[i][0]; x.h.sh.visible=saved[i][1]; x.h.stars.forEach((q,k)=>q.visible=saved[i][2][k]); });
+  suti.g.visible=sv[0]; suti.sh.visible=sv[1]; suti.g.position.copy(sv[2]); suti.g.rotation.y=sv[3]; suti.body.rotation.x=sv[4];
+  const cv=document.createElement('canvas'); cv.width=cv.height=SZ; const g2=cv.getContext('2d'), im=g2.createImageData(SZ,SZ);
+  for(let y=0;y<SZ;y++) im.data.set(buf.subarray((SZ-1-y)*SZ*4,(SZ-y)*SZ*4),y*SZ*4);
+  g2.putImageData(im,0,0); return sutiPort=cv.toDataURL('image/png'); }catch(e){ return sutiPort=''; } }
 function frameSel(){ const el=document.getElementById('dgSel'), f=S.frame; if(!el||!f) return; el.style.left=f.l+'px'; el.style.top=f.t+'px'; el.style.width=f.w+'px'; el.style.height=f.h+'px'; el.style.setProperty('--u',String(clamp(f.w/390,0.7,1.3))); }
 function hideSel(){ const el=document.getElementById('dgSel'); if(el) el.classList.remove('on'); }
 async function enterSelect(){
@@ -5318,9 +5349,9 @@ function buildSel(){
   const sel=S.sel; let el=document.getElementById('dgSel'); if(!el){ el=document.createElement('div'); el.id='dgSel'; document.body.appendChild(el); }
   const stat=(l,v,k)=>`<span class="r"><i class="l">${l}</i><span class="t ${k}">${[1,2,3,4,5].map(n=>`<u class="${n<=v?'f':''}"></u>`).join('')}</span></span>`;
   const card=(e,side,i)=>`<button type="button" class="cd" data-side="${side}" data-i="${i}"><img alt="" src="${portraitURL(e.id)}"><span class="inf"><span class="rw"><b class="nm">${e.name}</b><img class="fl" alt="${e.nat}" src="${flagURL(e.nat)}"></span>${stat('SPD',e.spd,'s')}${stat('STR',e.str,'t')}${stat('HP',e.hp,'h')}</span><em class="ord"></em></button>`;
-  el.innerHTML=`<div class="half up"><div class="hd"><b>ENEMY TEAM<span class="rdy" data-r="E">READY</span></b><span class="hr"><span class="su ro" data-s="E">🐶 SUTI ON</span><span class="cnt" data-c="E">0/${TEAM_SIZE}</span></span></div><div class="grid" data-g="E">${sel.roster.E.map((e,i)=>card(e,'E',i)).join('')}</div></div>
+  el.innerHTML=`<div class="half up"><div class="hd"><b>ENEMY TEAM<span class="rdy" data-r="E">READY</span></b><span class="hr"><span class="su ro" data-s="E"><img class="sp" alt="" src="${sutiPortrait()}"><span class="st">SUTI ON</span></span><span class="cnt" data-c="E">0/${TEAM_SIZE}</span></span></div><div class="grid" data-g="E">${sel.roster.E.map((e,i)=>card(e,'E',i)).join('')}</div></div>
 <div class="tm"><span class="tt">${SELECT_TIME}</span></div>
-<div class="half dn"><div class="hd"><b class="big">SELECT YOUR TEAM!<span class="rdy" data-r="P">READY</span></b><span class="hr"><button type="button" class="su" data-s="P">🐶 SUTI ON</button><span class="cnt" data-c="P">0/${TEAM_SIZE}</span></span></div><div class="grid" data-g="P">${sel.roster.P.map((e,i)=>card(e,'P',i)).join('')}</div>
+<div class="half dn"><div class="hd"><b class="big">SELECT YOUR TEAM!<span class="rdy" data-r="P">READY</span></b><span class="hr"><button type="button" class="su" data-s="P"><img class="sp" alt="" src="${sutiPortrait()}"><span class="st">SUTI ON</span></button><span class="cnt" data-c="P">0/${TEAM_SIZE}</span></span></div><div class="grid" data-g="P">${sel.roster.P.map((e,i)=>card(e,'P',i)).join('')}</div>
 <div class="ft"><div class="slots">${[0,1,2,3].map(k=>`<button type="button" class="sl" data-k="${k}"></button>`).join('')}</div><button type="button" class="go" disabled>FIGHT!</button></div></div>`;
   el.onclick=e=>{
     const cd=e.target.closest('.cd'), sl=e.target.closest('.sl'), go=e.target.closest('.go'), su=e.target.closest('.su[data-s="P"]');
@@ -5345,7 +5376,7 @@ function renderSel(){
     el.querySelector('.rdy[data-r="'+side+'"]').classList.toggle('on',sel.ready[side]);
   });
   el.querySelectorAll('.sl').forEach((sl,k)=>{ const e=sel.picks.P[k]; sl.classList.toggle('f',!!e); sl.innerHTML=e?`<img alt="${e.name}" src="${portraitURL(e.id)}">`:''; });
-  ['P','E'].forEach(side=>{ const b=el.querySelector('.su[data-s="'+side+'"]'), on=sel.suti[side]; b.textContent='🐶 SUTI '+(on?'ON':'OFF'); b.classList.toggle('off',!on); b.classList.toggle('rnd',!!sel.rnd); });
+  ['P','E'].forEach(side=>{ const b=el.querySelector('.su[data-s="'+side+'"]'), on=sel.suti[side]; b.querySelector('.st').textContent='SUTI '+(on?'ON':'OFF'); b.classList.toggle('off',!on); b.classList.toggle('rnd',!!sel.rnd); });
   const go=el.querySelector('.go'); go.disabled=sel.ready.P||sel.picks.P.length<TEAM_SIZE; go.textContent=sel.ready.P?'WAITING…':'FIGHT!';
 }
 function lockIn(){      // both sides are done: if the two players disagree about Suti, the computer flips a coin (seeded, so a server can do the same)
@@ -5520,6 +5551,7 @@ function placeAll(dt){
     const big=B.mult>1?1.3:1;
     B.mesh.position.set(_hp.x,_hp.y+0.3,_hp.z+0.4); B.mesh.scale.setScalar(BALL_R*big*(0.8+0.2*Math.min(1,S.phaseT*4))); B.mesh.rotation.y+=dt*3;
     if(B.mult>1) heldFire(B,dt);
+    if(B.fuse!==undefined&&B.fuse<=3&&!S.demo){ const k=1+0.18*Math.abs(Math.sin(B.fuse*Math.PI*4)); B.mesh.scale.setScalar(BALL_R*(B.mult>1?1.3:1)*k); }
     B.x=_hp.x; B.z=_hp.z; B.y=_hp.y; placeGlow(B,1); B.glow.scale.setScalar((B.mult>1?1.3:1)*2.6); if(B.gold) B.gold.scale.setScalar(4.6); B.sh.position.set(c.x,0.04,c.z); B.sh.scale.set(0.01,0.01,1);
   }
   // the little arrow over whoever holds the ball
