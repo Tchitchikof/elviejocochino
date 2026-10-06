@@ -5269,17 +5269,15 @@ const arrow=new THREE.Mesh(new THREE.ConeBufferGeometry(0.42,0.85,4),new THREE.M
 { const g=new THREE.Group(); scene.add(arrow); }
 
 /* ---------------- the floating bar in the middle of the court: slides left and right for ever; balls bounce off it, and a ball that comes back hurts ANYONE ---------------- */
-const BAR_HW=2.2, BAR_T=0.3, BAR_SPD=3.0;
+const BAR_HW=0.9, BAR_T=0.16, BAR_SPD=6.5;
 const bar={x:0,dir:1};
 const barGroup=new THREE.Group(); scene.add(barGroup);
-{ barGroup.add(place(rb(BAR_HW*2,2.0,BAR_T*2+0.1,PAL.periD,0.22),0,0,0));
-  barGroup.add(place(rb(BAR_HW*2-0.7,1.5,0.06,PAL.periD,0.15),0,0,BAR_T+0.04)); barGroup.add(place(rb(BAR_HW*2-0.7,1.5,0.06,PAL.periD,0.15),0,0,-BAR_T-0.04));
-  barGroup.add(place(ball(0.1,PAL.cream),BAR_HW-0.55,-0.05,BAR_T+0.12)); barGroup.add(place(ball(0.1,PAL.cream),-BAR_HW+0.55,-0.05,-BAR_T-0.12)); }
-const barSh=makeShadow(BAR_HW*2,1.0); scene.add(barSh);
+barGroup.add(place(rb(BAR_HW*2,1.4,BAR_T*2,PAL.periD,0.12),0,0,0));       // a plain blue bar, same material as the side rails
+const barSh=makeShadow(BAR_HW*2,0.6); scene.add(barSh);
 const barAmp=()=>HW-BAR_HW-0.35;
 function barReset(){ bar.x=0; bar.dir=Math.random()<0.5?1:-1; }
 function stepBar(dt){ const a=barAmp(); bar.x+=bar.dir*BAR_SPD*dt; if(bar.x>=a){ bar.x=a; bar.dir=-1; } else if(bar.x<=-a){ bar.x=-a; bar.dir=1; } }
-function placeBar(){ const y=1.3+Math.sin(S.t*1.7)*0.06; barGroup.position.set(bar.x,y,0); barSh.position.set(bar.x,0.03,0); }
+function placeBar(){ const y=1.1+Math.sin(S.t*1.7)*0.06; barGroup.position.set(bar.x,y,0); barSh.position.set(bar.x,0.03,0); }
 
 /* ---------------- Suti: roams the WHOLE court (both halves), faster and more erratic than in the teacher game, and eats any ball that gets within reach ---------------- */
 let suti=null; const SUTI_S=1.5, SUTI_SPD=7.6, SUTI_R=2.0;
