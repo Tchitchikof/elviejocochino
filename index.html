@@ -4927,7 +4927,7 @@ function startTurn(){
   if(!S.booster&&S.turn>=2&&Math.random()<0.55) spawnBooster(other(side));
   S.aiT=0; S.aiDelay=rr(0.9,1.7);
   updateHud(power);
-  hsfx.turn(); if(power){ hsfx.power(); popup('⚡ x2 ball!',c.x,c.H+0.8,c.z); }
+  hsfx.turn(); S.superT=power?1.5:0; if(power){ hsfx.power(); }
 }
 function updateHud(power){
   $('score').textContent='Turn '+S.turn;
@@ -4951,11 +4951,11 @@ const rangeOf=power=>14+34*power;                              // total distance
 const fold=(v,a,b)=>{ const w=b-a, m=(((v-a)%(2*w))+2*w)%(2*w); return a+(m<=w?m:2*w-m); };
 const bx0=()=>-HW+0.5, bx1=()=>HW-0.5, bz0=()=>ZF+0.5, bz1=()=>ZB-0.5;
 function ballAt(p,s){ return {x:fold(p.ox+p.dx*s,bx0(),bx1()), z:fold(p.oz+p.dz*s,bz0(),bz1())}; }
-function ballEnd(ox,oz,dx,dz,Lmax){      // the ball may bounce ONCE: it pops when it reaches a wall for the second time
+function ballEnd(ox,oz,dx,dz,Lmax,used){      // the ball may bounce ONCE: it pops when it reaches a wall for the second time
   const wx=bx1()-bx0(), wz=bz1()-bz0(), c=[];
   if(Math.abs(dx)>1e-6){ const f=dx>0?(bx1()-ox)/dx:(bx0()-ox)/dx; for(let k=0;k<3;k++) c.push(f+k*wx/Math.abs(dx)); }
   if(Math.abs(dz)>1e-6){ const f=dz>0?(bz1()-oz)/dz:(bz0()-oz)/dz; for(let k=0;k<3;k++) c.push(f+k*wz/Math.abs(dz)); }
-  c.sort((a,b)=>a-b); const second=c.filter(v=>v>0.001)[1];
+  c.sort((a,b)=>a-b); const second=c.filter(v=>v>0.001)[used>0?0:1];
   return (second!==undefined&&second<Lmax)?{L:second,edge:true}:{L:Lmax,edge:false};
 }
 function launch(c,dx,dz,power){
@@ -4968,17 +4968,22 @@ function launch(c,dx,dz,power){
 /* the computer's throw: pick a living enemy (or sometimes the shield), lead the target a little, aim with some error */
 function aiThrow(c){
   const foes=living(squad(other(c.team))); if(!foes.length) return;
-  let tx,tz,tvx=0,tvz=0;
-  const bo=S.booster;
-  if(bo&&bo.court!==c.team&&Math.random()<0.3){ tx=bo.x; tz=bo.z; tvx=bo.vx; tvz=bo.vz; }
-  else { const t=foes[Math.floor(Math.random()*foes.length)]; tx=t.x; tz=t.z; tvx=t.vx; tvz=t.vz; }
-  const o0=handPos(c,0,0); let dist=Math.hypot(tx-o0.x,tz-o0.z); const ft=dist/(BALL_SPEED*0.85);
-  tx+=tvx*ft*0.8; tz+=tvz*ft*0.8;
-  // sometimes bank it off a side wall
-  if(Math.random()<0.18){ const wall=tx>c.x?bx0():bx1(), mx=2*wall-tx; if(Math.abs(mx-c.x)>3) tx=mx; }
-  let dx=tx-c.x, dz=tz-c.z; dist=Math.hypot(dx,dz)||1;
-  const err=(Math.random()<0.3?rr(-0.26,0.26):rr(-0.12,0.12)), a=Math.atan2(dx,dz)+err;
-  const pw=clamp((dist+5-14)/34,0.1,1);
+  const bo=S.booster; let a=0, pw=0.5;
+  for(let attempt=0;attempt<4;attempt++){
+    let tx,tz,tvx=0,tvz=0;
+    if(bo&&bo.court!==c.team&&Math.random()<0.3){ tx=bo.x; tz=bo.z; tvx=bo.vx; tvz=bo.vz; }
+    else { const t=foes[Math.floor(Math.random()*foes.length)]; tx=t.x; tz=t.z; tvx=t.vx; tvz=t.vz; }
+    const o0=handPos(c,0,0); let dist=Math.hypot(tx-o0.x,tz-o0.z); const ft=dist/(BALL_SPEED*0.85);
+    tx+=tvx*ft*0.8; tz+=tvz*ft*0.8;
+    if(Math.random()<0.18){ const wall=tx>c.x?bx0():bx1(), mx=2*wall-tx; if(Math.abs(mx-c.x)>3) tx=mx; }       // sometimes bank it off a side wall
+    let dx=tx-c.x, dz=tz-c.z; dist=Math.hypot(dx,dz)||1;
+    const err=(Math.random()<0.3?rr(-0.26,0.26):rr(-0.12,0.12)); a=Math.atan2(dx,dz)+err;
+    pw=clamp((dist+5-14)/34,0.1,1);
+    const ndx=Math.sin(a), ndz=Math.cos(a);
+    const towards=ndz*(0-c.z)>0, xc=c.x+ndx/(ndz||1e-6)*(0-c.z), barX=bar.x+bar.dir*BAR_SPD*(Math.abs(c.z)/BALL_SPEED);
+    const blocked=towards&&Math.abs(xc-barX)<BAR_HW+0.7;
+    if(!blocked||Math.random()<0.12) break;                       // usually it waits for a clear lane, sometimes it just fires into the bar
+  }
   launch(c,Math.sin(a),Math.cos(a),pw);
 }
 
@@ -5031,9 +5036,9 @@ function stepBall(dt){
   if(p.state==='fly'||p.state==='land'){
     const land=(p.state==='land'); if(land) p.landT+=dt; else p.t+=dt;
     const f=land?0.3*Math.max(0,1-p.landT/0.5):0.3+0.7*clamp((p.L-p.s)/3,0,1);
-    p.s+=BALL_SPEED*f*dt; const q=ballAt(p,p.s); const vx=q.x-p.x, vz=q.z-p.z; p.x=q.x; p.z=q.z;
+    const px0=p.x, pz0=p.z; p.s+=BALL_SPEED*f*dt; const q=ballAt(p,p.s); const vx=q.x-p.x, vz=q.z-p.z; p.x=q.x; p.z=q.z;
     const kx=Math.floor((p.ox+p.dx*p.s-bx0())/(bx1()-bx0())), kz=Math.floor((p.oz+p.dz*p.s-bz0())/(bz1()-bz0()));
-    if(kx!==p.kx||kz!==p.kz){ p.kx=kx; p.kz=kz; p.bounces++; p.sq=1; hsfx.bounce(); burst(p.x,0.5,p.z,3,p.team==='P'?0x35c14a:0xe8302a); }
+    if(kx!==p.kx||kz!==p.kz){ p.kx=kx; p.kz=kz; p.bounces++; p.walls=(p.walls||0)+1; p.sq=1; hsfx.bounce(); burst(p.x,0.5,p.z,3,p.team==='P'?0x35c14a:0xe8302a); }
     p.sq=Math.max(0,p.sq-dt*6);
     p.y=land?BALL_R:(p.t<0.2?lerp(1.25,0.5,ease(p.t/0.2)):0.46+0.34*Math.abs(Math.sin((p.t-0.2)*7))*Math.max(0.3,1-p.bounces*0.14));
     const big=p.dmg>1?1.3:1;
@@ -5048,11 +5053,22 @@ function stepBall(dt){
         const o=p.owner; if(!o.shield){ o.shield=true; paintBar(o); }
         hsfx.shield(); popup('🛡 Shield!',o.x,o.H+0.7,o.z); burst(bo.x,1.2,bo.z,14,0x7fd6ff); removeBooster(false);
       }
+      p.barCd=Math.max(0,(p.barCd||0)-dt);
+      if(!p.barCd && Math.abs(p.z)<BAR_T+BALL_R && Math.abs(p.x-bar.x)<BAR_HW+BALL_R*0.7){      // it hits the bar: bounce back, and from now on it can hurt anybody
+        let dx=p.dx, dz=p.dz, nx=p.x, nz=p.z;
+        const fromFront=Math.abs(pz0)>=BAR_T+BALL_R*0.4;
+        if(fromFront){ const sd=pz0>0?1:-1; dz=sd*Math.abs(dz); nz=sd*(BAR_T+BALL_R+0.03); }
+        else { const sd=px0>bar.x?1:-1; dx=sd*Math.abs(dx); nx=bar.x+sd*(BAR_HW+BALL_R*0.7+0.03); }
+        dx+=bar.dir*(BAR_SPD/BALL_SPEED)*0.6; const l=Math.hypot(dx,dz)||1; dx/=l; dz/=l;           // the sliding bar gives it a little sideways kick
+        const rem=Math.max(4,p.L-p.s), E=ballEnd(nx,nz,dx,dz,rem,p.walls||0);
+        Object.assign(p,{ox:nx,oz:nz,dx,dz,s:0,L:E.L,edge:E.edge,x:nx,z:nz,reflected:true,barCd:0.2,kx:Math.floor((nx-bx0())/(bx1()-bx0())),kz:Math.floor((nz-bz0())/(bz1()-bz0())),sq:1});
+        hsfx.bounce(); hsfx.block(); burst(nx,1.0,nz,10,0x8fa6f2); S.shake=Math.max(S.shake,0.12); popup('Bounce!',nx,2.2,nz); return;
+      }
       if(suti&&suti.state!=='snap'&&Math.hypot(p.x-suti.x,p.z-suti.z)<SUTI_R){          // Suti spots it: any ball inside her reach is gone
         p.state='caught'; suti.state='snap'; suti.snapT=0; suti.sx=suti.x; suti.sz=suti.z; suti.qx=p.x; suti.qz=p.z; hsfx.snap(); popup('Nom!',suti.x,2.8,suti.z); return;
       }
       let hit=null;
-      for(const c of squad(other(p.team))){ if(c.ko||!c.active) continue; if(Math.hypot(p.x-c.x,apz-c.z)<CH_R){ hit=c; break; } }
+      for(const c of (p.reflected?squad('P').concat(squad('E')):squad(other(p.team)))){ if(c.ko||!c.active) continue; if(Math.hypot(p.x-c.x,apz-c.z)<CH_R){ hit=c; break; } }
       if(hit){ applyHit(hit,p); killBall(p); S.ball=null; endTurn(S.over?1.5:(hit.stun>0?1.15:0.8)); return; }
       if(p.s>=p.L){ if(p.edge){ p.state='pop'; p.landT=0; burst(p.x,p.y,p.z,9,p.team==='P'?0x35c14a:0xe8302a); hsfx.bounce(); } else { p.state='land'; p.landT=0; } }
     } else if(p.landT>0.95){ killBall(p); S.ball=null; endTurn(0.55); }
@@ -5142,7 +5158,7 @@ function resetMatch(){
       c.ring.material.color.setHex(side==='P'?C_P:C_E); c.ring.visible=true; c.bubble.visible=false; c.bar.style.display=''; paintBarQuiet(c);
     });
   });
-  sutiReset(); $('score').textContent='Turn 0';
+  sutiReset(); barReset(); S.superT=0; $('score').textContent='Turn 0';
 }
 function paintBarQuiet(c){ c.bar.querySelectorAll('i').forEach((el,i)=>el.classList.toggle('on',i<c.hp)); c.bar.classList.remove('sh'); c.bar.classList.toggle('P',c.team==='P'); c.bar.classList.toggle('E',c.team==='E'); }
 function startPlay(){
@@ -5237,8 +5253,33 @@ function placeAll(dt){
     c.bar.style.visibility='visible'; c.bar.style.transform='translate('+(((_v.x*0.5+0.5)*r.width+r.left)|0)+'px,'+(((-_v.y*0.5+0.5)*r.height+r.top)|0)+'px) translate(-50%,-100%)';
   });
 }
+/* "SUPER HIT" floats over whoever holds the x2 ball for 1.5 seconds */
+const superEl=(()=>{ if(!document.getElementById('dgSuperCss')){ const st=document.createElement('style'); st.id='dgSuperCss'; st.textContent='#dgSuper{position:fixed;left:0;top:0;z-index:7;display:none;pointer-events:none;font-weight:700;font-size:clamp(24px,4.4vw,40px);letter-spacing:.02em;color:#f6c030;-webkit-text-stroke:2px #3b2b4f;paint-order:stroke fill;text-shadow:0 3px 0 #3b2b4f,0 0 14px rgba(246,192,48,.8);white-space:nowrap;will-change:transform}@keyframes dgSup{0%{scale:.4}18%{scale:1.2}30%{scale:1}100%{scale:1}}#dgSuper.on{display:block;animation:dgSup .45s ease-out}'; document.head.appendChild(st); }
+  let e=document.getElementById('dgSuper'); if(!e){ e=document.createElement('div'); e.id='dgSuper'; e.textContent='SUPER HIT'; document.body.appendChild(e); } return e; })();
+function placeSuper(dt){
+  const c=S.thrower, on=S.mode==='play'&&S.superT>0&&c&&S.ball&&S.ball.dmg>1&&S.phase==='hold';
+  if(S.mode==='play'&&S.superT>0) S.superT-=dt;
+  if(!on||S.superT<=0){ if(superEl.classList.contains('on')){ superEl.classList.remove('on'); } return; }
+  const r=renderer.domElement.getBoundingClientRect(); _v.set(c.x,c.H+1.35,c.z).project(camera);
+  if(!superEl.classList.contains('on')) superEl.classList.add('on');
+  superEl.style.opacity=S.superT<0.3?String(S.superT/0.3):'1';
+  superEl.style.transform='translate('+(((_v.x*0.5+0.5)*r.width+r.left)|0)+'px,'+(((-_v.y*0.5+0.5)*r.height+r.top)|0)+'px) translate(-50%,-100%)';
+}
 const arrow=new THREE.Mesh(new THREE.ConeBufferGeometry(0.42,0.85,4),new THREE.MeshBasicMaterial({color:C_P})); arrow.rotation.x=Math.PI; arrow.visible=false;
 { const g=new THREE.Group(); scene.add(arrow); }
+
+/* ---------------- the floating bar in the middle of the court: slides left and right for ever; balls bounce off it, and a ball that comes back hurts ANYONE ---------------- */
+const BAR_HW=2.2, BAR_T=0.3, BAR_SPD=3.0;
+const bar={x:0,dir:1};
+const barGroup=new THREE.Group(); scene.add(barGroup);
+{ barGroup.add(place(rb(BAR_HW*2,2.0,BAR_T*2+0.1,PAL.periD,0.22),0,0,0));
+  barGroup.add(place(rb(BAR_HW*2-0.7,1.5,0.06,PAL.periD,0.15),0,0,BAR_T+0.04)); barGroup.add(place(rb(BAR_HW*2-0.7,1.5,0.06,PAL.periD,0.15),0,0,-BAR_T-0.04));
+  barGroup.add(place(ball(0.1,PAL.cream),BAR_HW-0.55,-0.05,BAR_T+0.12)); barGroup.add(place(ball(0.1,PAL.cream),-BAR_HW+0.55,-0.05,-BAR_T-0.12)); }
+const barSh=makeShadow(BAR_HW*2,1.0); scene.add(barSh);
+const barAmp=()=>HW-BAR_HW-0.35;
+function barReset(){ bar.x=0; bar.dir=Math.random()<0.5?1:-1; }
+function stepBar(dt){ const a=barAmp(); bar.x+=bar.dir*BAR_SPD*dt; if(bar.x>=a){ bar.x=a; bar.dir=-1; } else if(bar.x<=-a){ bar.x=-a; bar.dir=1; } }
+function placeBar(){ const y=1.3+Math.sin(S.t*1.7)*0.06; barGroup.position.set(bar.x,y,0); barSh.position.set(bar.x,0.03,0); }
 
 /* ---------------- Suti: roams the WHOLE court (both halves), faster and more erratic than in the teacher game, and eats any ball that gets within reach ---------------- */
 let suti=null; const SUTI_S=1.5, SUTI_SPD=7.6, SUTI_R=2.0;
@@ -5296,11 +5337,11 @@ const _cp=new THREE.Vector3();
 function update(dt){
   S.t+=dt; const m=S.mode;
   if(m==='play'){
-    stepChars(dt); stepSuti(dt); stepFlow(dt); stepBall(dt); stepBooster(dt); updatePreview(); drawAim();
+    stepChars(dt); stepBar(dt); stepSuti(dt); stepFlow(dt); stepBall(dt); stepBooster(dt); updatePreview(); drawAim();
   } else if(m==='win'||m==='lose'){
-    S.overT+=dt; stepChars(dt); stepSuti(dt); stepBooster(dt);
+    S.overT+=dt; stepChars(dt); stepBar(dt); stepSuti(dt); stepBooster(dt);
   }
-  placeAll(dt); placeSuti(); updateBits(dt); updateConf(dt);
+  placeAll(dt); placeSuti(); placeBar(); placeSuper(dt); updateBits(dt); updateConf(dt);
   S.camPos.lerp(S.runPos,1-Math.exp(-dt*6)); S.camTgt.lerp(S.runTgt,1-Math.exp(-dt*6));
   S.shake=Math.max(0,S.shake-dt); _cp.copy(S.camPos);
   if(S.shake>0){ _cp.x+=(Math.random()-0.5)*S.shake*0.9; _cp.z+=(Math.random()-0.5)*S.shake*0.9; }
@@ -5355,7 +5396,7 @@ const META = {
   pato:   { l1:'SUTI AND THE', l2:'DUCK',   lose:'Face plant!', title:'Suti and the Duck',       key:'sutiBest',        factory:createPato,    cta:'Click or tap to jump', hint:'Space or ↑ also works', hp:'' },
   hall:   { l1:'THE TEACHER', l2:'EATS IT', lose:"Time's up!", title:'The Teacher Eats It', key:'hallBest',        factory:createHall,    cta:'Click or tap to play', hint:'Drag anywhere to aim, let go to throw. Up to 2 balls at once, and each can bounce once.', hp:'TERO', time:true },
   thomas: { l1:'THOMAS', l2:'SIMULATOR', lose:'Heartbroken…', title:'Thomas Simulator', key:'thomasBest', factory:createThomas, cta:'Click or tap to play', hint:'Move with the joystick, WASD or arrows. Keep the heart away from the girls, and stand still to be ignored.', hp:'❤️', time:true },
-  dodge:  { l1:'FRIENDS', l2:'DODGEBALL', lose:'You lose!', title:'Friends Dodgeball', key:'dodgeBest', factory:createDodge, cta:'Click or tap to play', hint:'Drag anywhere to aim, let go to throw. Hit the other team, shoot the shield, and watch out: Suti eats any ball that gets close.', hp:'', unit:' turns' },
+  dodge:  { l1:'FRIENDS', l2:'DODGEBALL', lose:'You lose!', title:'Friends Dodgeball', key:'dodgeBest', factory:createDodge, cta:'Click or tap to play', hint:'Drag anywhere to aim, let go to throw. Hit the other team, shoot the shield, and watch out: the sliding bar bounces balls back (they hurt anyone) and Suti eats any ball that gets close.', hp:'', unit:' turns' },
   office: { l1:'SHANI', l2:'QUITS',     lose:"Time's up!", title:'Shani Quits',       key:'officeBest',      factory:createOffice,  cta:'Click or tap to play', hint:'Move with the joystick, WASD or arrows', hp:'🔨', time:true }
 };
 const games = {}; let cur = null, busy = false;
