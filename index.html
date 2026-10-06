@@ -4899,7 +4899,7 @@ async function buildChar(id,side){
   if(d.exact) h.exact=true;
   if(d.bust){ h.bust=bustInfo; h.obj.traverse(n=>{ if(n.isSkinnedMesh) n.material.side=THREE.DoubleSide; }); }
   const ringM=new THREE.Mesh(ringGeoP,new THREE.MeshBasicMaterial({color:C_P,transparent:true,opacity:0.6,side:THREE.DoubleSide,depthWrite:false})); ringM.rotation.x=-Math.PI/2; ringM.visible=false; scene.add(ringM);
-  const bub=new THREE.Mesh(bubbleGeo,new THREE.MeshBasicMaterial({color:0x5fc8ff,transparent:true,opacity:0.3,depthWrite:false})); bub.visible=false; scene.add(bub);
+  const bub=new THREE.Mesh(bubbleGeo,new THREE.ShaderMaterial({transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,uniforms:{uK:{value:1}},vertexShader:'varying vec3 vN; varying vec3 vV; void main(){ vN=normalize(normalMatrix*normal); vec4 mv=modelViewMatrix*vec4(position,1.0); vV=normalize(-mv.xyz); gl_Position=projectionMatrix*mv; }',fragmentShader:'uniform float uK; varying vec3 vN; varying vec3 vV; void main(){ float f=pow(1.0-abs(dot(normalize(vN),normalize(vV))),2.2); float a=(0.05+0.55*f)*uK; gl_FragColor=vec4(vec3(0.35,0.78,1.0)*a*1.4,a); }'})); bub.visible=false; scene.add(bub);
   const bar=document.createElement('div'); bar.className='dgb'; bar.style.visibility='hidden'; bar.innerHTML='<span class="nm"></span><span class="hb"><u></u></span><b>🛡</b>'; barsEl.appendChild(bar);
   const c={id,name:d.n,H:d.H,h,team:side,active:false,hp:100,maxHp:100,dmgBase:25,spdK:1,stats:{spd:3,str:3,hp:3},shield:false,ko:false,koT:0,koYaw:0,x:0,z:0,tx:0,tz:0,yaw:0,dyaw:0,wait:0,legT:0,mul:1,ph:Math.random()*6,ph0:Math.random()*6,wave:false,stun:0,thr:-1,aimV:0,faceT:0,faceYaw:0,flash:0,vx:0,vz:0,ring:ringM,bubble:bub,bar,ref:0};
   h.g.visible=h.sh.visible=false; h.stars.forEach(s=>s.visible=false);
@@ -4987,6 +4987,7 @@ function startTurn(){
   S.ball=makeBall(side,c,power?2:1);
   // the shield booster may show up on the OTHER team's half, so whoever has the ball has to choose: shoot a player, or grab it
   if(S.booster&&S.turn-S.booster.born>=BOOST_LIFE) removeBooster(true);
+  if(S.booster&&S.booster.court===side){ const bb=S.booster; bb.court=other(side); const r=bounds({team:bb.court}); bb.x=rr(r.x0,r.x1); bb.z=rr(r.z0,r.z1); bb.appear=0; boostPick(bb); }       // the shield never sits on the court of the team that is about to shoot
   if(!S.booster&&S.turn>=2&&Math.random()<0.55) spawnBooster(other(side));
   S.aiT=0; S.aiDelay=rr(0.9,1.7);
   updateHud(power);
@@ -5075,15 +5076,16 @@ const boostGroup=new THREE.Group(); boostGroup.visible=false; scene.add(boostGro
   const ig=new THREE.ShapeBufferGeometry(inner,14), im=new THREE.Mesh(ig,new THREE.MeshBasicMaterial({color:0xeaf8ff,side:THREE.DoubleSide})); im.position.z=0.17; im.scale.setScalar(1.15); boostGroup.add(im);
   const im2=im.clone(); im2.position.z=-0.17; boostGroup.add(im2);
 })();
-const boostGlow=makeGlow('S',3.6), boostRing=new THREE.Mesh(new THREE.RingBufferGeometry(BOOST_R-0.12,BOOST_R,40),new THREE.MeshBasicMaterial({color:0x4fb9ff,transparent:true,opacity:0.8,side:THREE.DoubleSide,depthWrite:false})); boostRing.rotation.x=-Math.PI/2; boostRing.visible=false; scene.add(boostRing); boostGlow.visible=false;
+const boostWord=new THREE.Sprite(new THREE.SpriteMaterial({map:canvasTex(256,64,(g2,w,h)=>{ g2.font='900 46px Fredoka, Arial Rounded MT Bold, Arial, sans-serif'; g2.textAlign='center'; g2.textBaseline='middle'; g2.lineJoin='round'; g2.lineWidth=10; g2.strokeStyle='#1c3a66'; g2.strokeText('SHIELD',w/2,h/2+2); g2.fillStyle='#eaf8ff'; g2.fillText('SHIELD',w/2,h/2+2); }),transparent:true,depthTest:false})); boostWord.scale.set(2.4,0.6,1); boostWord.renderOrder=20; boostWord.visible=false; scene.add(boostWord);
+const boostGlow=makeGlow('S',2.6), boostRing=new THREE.Mesh(new THREE.RingBufferGeometry(BOOST_R-0.12,BOOST_R,40),new THREE.MeshBasicMaterial({color:0x4fb9ff,transparent:true,opacity:0.8,side:THREE.DoubleSide,depthWrite:false})); boostRing.rotation.x=-Math.PI/2; boostRing.visible=false; scene.add(boostRing); boostGlow.visible=false;
 function spawnBooster(court){
   const b=bounds({team:court});
   S.booster={court,born:S.turn,x:rr(b.x0,b.x1),z:rr(b.z0,b.z1),tx:0,tz:0,vx:0,vz:0,legT:0,appear:0,fade:0};
-  boostGroup.visible=boostGlow.visible=boostRing.visible=true; boostPick(S.booster);
+  boostGroup.visible=boostGlow.visible=boostWord.visible=true; boostRing.visible=false; boostPick(S.booster);
   popup('🛡 Shield!',S.booster.x,2.2,S.booster.z);
 }
 function boostPick(b){ const r=bounds({team:b.court}); b.tx=rr(r.x0,r.x1); b.tz=rr(r.z0,r.z1); b.legT=rr(0.8,2); }
-function removeBooster(fade){ S.booster=null; boostGroup.visible=boostGlow.visible=boostRing.visible=false; }
+function removeBooster(fade){ S.booster=null; boostGroup.visible=boostGlow.visible=boostRing.visible=boostWord.visible=false; }
 function stepBooster(dt){
   const b=S.booster; if(!b){ return; }
   b.appear=Math.min(1,b.appear+dt*3); b.legT-=dt;
@@ -5092,9 +5094,9 @@ function stepBooster(dt){
   const r=bounds({team:b.court}); b.x=clamp(b.x,r.x0,r.x1); b.z=clamp(b.z,r.z0,r.z1);
   const last=(S.turn-b.born>=BOOST_LIFE-1), blink=last?(Math.floor(S.t*6)%2===0?1:0.25):1;      // blinks during its last turn
   const y=1.25+Math.sin(S.t*3)*0.15;
-  boostGroup.position.set(b.x,y,b.z); boostGroup.rotation.set(-0.85,Math.sin(S.t*1.8)*0.6,0,'YXZ'); boostGroup.scale.setScalar(b.appear*blink);
+  boostGroup.position.set(b.x,y,b.z); boostGroup.rotation.set(-0.85,Math.sin(S.t*1.8)*0.6,0,'YXZ'); boostGroup.scale.setScalar(0.8*b.appear*blink); boostWord.position.set(b.x,y+0.95,b.z+0.3); boostWord.material.opacity=blink*b.appear;
   boostGlow.position.set(b.x,y,b.z+0.2); boostGlow.material.opacity=(0.65+0.25*Math.sin(S.t*6))*blink;
-  boostRing.position.set(b.x,0.06,b.z); boostRing.scale.setScalar(1+0.05*Math.sin(S.t*6)); boostRing.material.opacity=0.8*blink;
+  boostRing.visible=false;
 }
 
 /* ---------------- fire for the super (x2) ball: flames while it is held, a comet trail when it flies ---------------- */
@@ -5152,7 +5154,7 @@ function stepBall(dt){
         Object.assign(p,{ox:nx,oz:nz,dx,dz,s:0,L:E.L,edge:E.edge,x:nx,z:nz,reflected:true,barCd:0.2,kx:Math.floor((nx-bx0())/(bx1()-bx0())),kz:Math.floor((nz-bz0())/(bz1()-bz0())),sq:1});
         hsfx.bounce(); hsfx.block(); burst(nx,1.0,nz,10,0x8fa6f2); S.shake=Math.max(S.shake,0.12); popup('Bounce!',nx,2.2,nz); return;
       }
-      if(S.sutiOn&&suti&&suti.state!=='snap'&&Math.hypot(p.x-suti.x,p.z-suti.z)<SUTI_R){          // Suti spots it: any ball inside her reach is gone
+      if(S.sutiOn&&p.mult<=1&&suti&&suti.state!=='snap'&&Math.hypot(p.x-suti.x,p.z-suti.z)<SUTI_R){          // Suti spots it: any ball inside her reach is gone
         p.state='caught'; suti.state='snap'; suti.snapT=0; suti.sx=suti.x; suti.sz=suti.z; suti.qx=p.x; suti.qz=p.z; hsfx.snap(); popup('Nom!',suti.x,2.8,suti.z); return;
       }
       let hit=null;
@@ -5233,13 +5235,13 @@ window.addEventListener('keydown',e=>{ if(!active) return; if((e.code==='Space'|
    Two halves: the upper one is the OTHER player's roster and picks (today the computer; online: the opponent), the lower one is yours.
    S.sel is plain data {roster:{P,E},picks:{P,E},ready:{P,E},t}, so the same screen can be driven by messages from a server. */
 (function(){ if(document.getElementById('dgSelCss')) return; const st=document.createElement('style'); st.id='dgSelCss'; st.textContent=`
-.dgb{ display:block; padding:0; background:none; box-shadow:none; border-radius:0; }
+.dgb, .dgb.hit, .dgb.low{ display:block; padding:0; background:none !important; box-shadow:none !important; border-radius:0; border:0; outline:0; }
 .dgb .nm{ display:none; }
-.dgb .hb{ display:block; position:relative; box-sizing:content-box; width:var(--w,54px); height:6px; border:2px solid #000; border-radius:99px; background:#000; overflow:hidden; }
+.dgb .hb{ display:block; position:relative; box-sizing:content-box; width:var(--w,54px); height:6px; border:1.5px solid #000; border-radius:99px; background:#000; overflow:hidden; }
 .dgb .hb u{ position:absolute; left:0; top:0; bottom:0; width:100%; border-radius:99px; background:#3fd15a; transition:width .3s ease-out; }
 .dgb.E .hb u{ background:#e5372b; } .dgb.low .hb u{ animation:dgLow .5s steps(2) infinite; }
 @keyframes dgLow{ 50%{ filter:brightness(1.5); } }
-.dgb.sh .hb{ border-color:#4fb9ff; background:#000; box-shadow:0 0 7px 1px rgba(79,185,255,.9); }
+.dgb.sh, .dgb.sh.E, .dgb.sh.P{ box-shadow:none; background:none; } .dgb.sh .hb{ background:#000; }
 .dgb b{ position:absolute; right:-14px; top:-6px; }
 body.selecting #hud{ opacity:1; } body.selecting #hud > div{ visibility:hidden; } body.selecting #home{ visibility:visible; }
 #dgSel{ position:fixed; z-index:3; display:none; flex-direction:column; overflow:hidden; color:#fff1d6; user-select:none; -webkit-user-select:none; touch-action:manipulation; --u:1; }
@@ -5535,7 +5537,7 @@ function placeChar(c,dt){
   // rings under the feet mark the hitbox (the active thrower gets a pulsing one)
   c.ring.visible=(m==='play'&&!c.ko); c.ring.position.set(c.x,0.05,c.z); c.ring.scale.setScalar(isTh?1.12+0.08*Math.sin(t*8):1); c.ring.material.opacity=isTh?0.95:0.5;
   c.ring.material.color.setHex(isTh?RAW.mustard:(c.shield?0x4fb9ff:(side==='P'?C_P:C_E)));
-  c.bubble.visible=(c.shield&&!c.ko&&m!=='ready'); if(c.bubble.visible){ c.bubble.position.set(c.x,c.H*0.5,c.z); c.bubble.scale.set(1.15,c.H*0.58,1.15); c.bubble.material.opacity=0.34+0.1*Math.sin(t*6); }
+  c.bubble.visible=(c.shield&&!c.ko&&m!=='ready'); if(c.bubble.visible){ c.bubble.position.set(c.x,c.H*0.5,c.z); c.bubble.scale.set(1.15,c.H*0.58,1.15); c.bubble.material.uniforms.uK.value=0.85+0.15*Math.sin(t*3); }
   if(c.h.bust){      // the bust bones (Shani): a soft jiggle
     stepJiggle(c,dt); c.h.g.updateMatrixWorld(true);
     [0,1].forEach(j=>{ const b=c.h.bust.bones[j], rs=c.h.bust.rest[j], J=jig[j];
@@ -5689,7 +5691,7 @@ async function boot(){
     for(const id of first){ await buildChar(id,'P'); await yieldUI(); }
   }catch(err){ console.error(err); document.querySelector('#loading p').textContent='Could not load the characters. Reload to retry.'; throw err; }
   rollTeam(); layout(); resetMatch(); setMode('ready');
-  window.__dodge={skipDemo,enterSelect,startMatch,togglePick,quickStart,inst,makeRoster,derive,FILLER_IDS,POOL_IDS,beginMatch,get suti(){return suti;},hideAim,drawAim,placeHuman,idlePose,waveHi,walkPose,cheerPose,stunPose,koPose,mixPose,ARM_AIM,ARM_THROW,ARM_IDLE,qx,qy,qz,makeBall,makeGlow,get env(){return env},get arrow(){return arrow},ring,dots,S,update,startPlay,launch,aiThrow,finish,applyHit,all,get teamP(){return teamP;},get teamE(){return teamE;},camera,scene,renderer,get HW(){return HW;},spawnBooster,rollTeam,resetMatch,startTurn};
+  window.__dodge={spawnBooster,paintBar,skipDemo,enterSelect,startMatch,togglePick,quickStart,inst,makeRoster,derive,FILLER_IDS,POOL_IDS,beginMatch,get suti(){return suti;},hideAim,drawAim,placeHuman,idlePose,waveHi,walkPose,cheerPose,stunPose,koPose,mixPose,ARM_AIM,ARM_THROW,ARM_IDLE,qx,qy,qz,makeBall,makeGlow,get env(){return env},get arrow(){return arrow},ring,dots,S,update,startPlay,launch,aiThrow,finish,applyHit,all,get teamP(){return teamP;},get teamE(){return teamE;},camera,scene,renderer,get HW(){return HW;},spawnBooster,rollTeam,resetMatch,startTurn};
   window.dodgeReady=true;
   // the rest of the pool loads quietly while the title screen is showing
   (async()=>{ for(const id of POOL_IDS){ if(inst.P[id]) continue; await new Promise(r=>setTimeout(r,350)); try{ await ensureInst('P',id); }catch(e){ console.warn('dodge: could not load',id,e); } } })();
