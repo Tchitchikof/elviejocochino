@@ -4560,12 +4560,45 @@ const wallTex=tileTex(128,640,(g,w,h)=>{
   g.fillStyle=hex(PAL.periD); g.fillRect(0,512,w,128);
   g.fillStyle=hex(PAL.plum); g.fillRect(0,512,w,8); g.fillRect(w/2-1,520,2,120);
 });
-const bannerTex=canvasTex(1024,256,(g,w,h)=>{
-  g.fillStyle=hex(PAL.plum); g.fillRect(0,0,w,h);
-  g.fillStyle=hex(PAL.mustard); g.fillRect(0,0,w,14); g.fillRect(0,h-14,w,14);
-  g.fillStyle=hex(PAL.cream); g.font='700 120px Fredoka, sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('DODGEBALL',w/2,h/2+6);
-  [[110,0x3fd15a],[914,0xe5372b]].forEach(([x,c])=>{ g.fillStyle=hex(c); g.beginPath(); g.arc(x,h/2,46,0,7); g.fill(); g.strokeStyle=hex(PAL.cream); g.lineWidth=7; g.stroke(); });
-});
+const FLAG_DRAW={
+  SI:(g,w,h)=>{ g.fillStyle='#fff'; g.fillRect(0,0,w,h/3); g.fillStyle='#1f4fa8'; g.fillRect(0,h/3,w,h/3); g.fillStyle='#d8262e'; g.fillRect(0,2*h/3,w,h/3); g.fillStyle='#1f4fa8'; g.beginPath(); g.moveTo(w*.14,h*.12); g.lineTo(w*.34,h*.12); g.lineTo(w*.34,h*.5); g.lineTo(w*.24,h*.62); g.lineTo(w*.14,h*.5); g.closePath(); g.fill(); },
+  MX:(g,w,h)=>{ g.fillStyle='#1a8a4a'; g.fillRect(0,0,w/3,h); g.fillStyle='#fff'; g.fillRect(w/3,0,w/3,h); g.fillStyle='#d8262e'; g.fillRect(2*w/3,0,w/3,h); g.fillStyle='#8a6a2a'; g.beginPath(); g.arc(w/2,h/2,h*.17,0,7); g.fill(); },
+  FR:(g,w,h)=>{ g.fillStyle='#1f4fa8'; g.fillRect(0,0,w/3,h); g.fillStyle='#fff'; g.fillRect(w/3,0,w/3,h); g.fillStyle='#d8262e'; g.fillRect(2*w/3,0,w/3,h); },
+  CA:(g,w,h)=>{ g.fillStyle='#d8262e'; g.fillRect(0,0,w,h); g.fillStyle='#fff'; g.fillRect(w/4,0,w/2,h); g.fillStyle='#d8262e'; g.beginPath(); g.moveTo(w/2,h*.16); g.lineTo(w*.62,h*.5); g.lineTo(w/2,h*.84); g.lineTo(w*.38,h*.5); g.closePath(); g.fill(); },
+  ES:(g,w,h)=>{ g.fillStyle='#d8262e'; g.fillRect(0,0,w,h); g.fillStyle='#f6c030'; g.fillRect(0,h/4,w,h/2); },
+  BR:(g,w,h)=>{ g.fillStyle='#1a8a4a'; g.fillRect(0,0,w,h); g.fillStyle='#f6c030'; g.beginPath(); g.moveTo(w/2,h*.12); g.lineTo(w*.88,h/2); g.lineTo(w/2,h*.88); g.lineTo(w*.12,h/2); g.closePath(); g.fill(); g.fillStyle='#1f4fa8'; g.beginPath(); g.arc(w/2,h/2,h*.22,0,7); g.fill(); },
+  IT:(g,w,h)=>{ g.fillStyle='#1a8a4a'; g.fillRect(0,0,w/3,h); g.fillStyle='#fff'; g.fillRect(w/3,0,w/3,h); g.fillStyle='#d8262e'; g.fillRect(2*w/3,0,w/3,h); },
+  DE:(g,w,h)=>{ g.fillStyle='#222'; g.fillRect(0,0,w,h/3); g.fillStyle='#d8262e'; g.fillRect(0,h/3,w,h/3); g.fillStyle='#f6c030'; g.fillRect(0,2*h/3,w,h/3); },
+  US:(g,w,h)=>{ for(let i=0;i<7;i++){ g.fillStyle=i%2?'#fff':'#d8262e'; g.fillRect(0,i*h/7,w,h/7+1); } g.fillStyle='#1f3f8a'; g.fillRect(0,0,w*.45,h*4/7); },
+  GB:(g,w,h)=>{ g.fillStyle='#1f3f8a'; g.fillRect(0,0,w,h); g.fillStyle='#fff'; g.fillRect(w*.4,0,w*.2,h); g.fillRect(0,h*.38,w,h*.24); g.fillStyle='#d8262e'; g.fillRect(w*.45,0,w*.1,h); g.fillRect(0,h*.44,w,h*.12); },
+  JP:(g,w,h)=>{ g.fillStyle='#fff'; g.fillRect(0,0,w,h); g.fillStyle='#d8262e'; g.beginPath(); g.arc(w/2,h/2,h*.3,0,7); g.fill(); },
+  AR:(g,w,h)=>{ g.fillStyle='#6cb4e8'; g.fillRect(0,0,w,h); g.fillStyle='#fff'; g.fillRect(0,h/3,w,h/3); g.fillStyle='#f6c030'; g.beginPath(); g.arc(w/2,h/2,h*.1,0,7); g.fill(); },
+  PL:(g,w,h)=>{ g.fillStyle='#fff'; g.fillRect(0,0,w,h/2); g.fillStyle='#d8262e'; g.fillRect(0,h/2,w,h/2); },
+  UA:(g,w,h)=>{ g.fillStyle='#1f6fd8'; g.fillRect(0,0,w,h/2); g.fillStyle='#f6c030'; g.fillRect(0,h/2,w,h/2); },
+  NL:(g,w,h)=>{ g.fillStyle='#d8262e'; g.fillRect(0,0,w,h/3); g.fillStyle='#fff'; g.fillRect(0,h/3,w,h/3); g.fillStyle='#1f4fa8'; g.fillRect(0,2*h/3,w,h/3); },
+  PT:(g,w,h)=>{ g.fillStyle='#1a8a4a'; g.fillRect(0,0,w*.4,h); g.fillStyle='#d8262e'; g.fillRect(w*.4,0,w*.6,h); g.fillStyle='#f6c030'; g.beginPath(); g.arc(w*.4,h/2,h*.17,0,7); g.fill(); }
+};
+function drawFlag(g,code,x,y,w,h){ g.save(); g.translate(x,y); g.beginPath(); g.rect(0,0,w,h); g.clip(); (FLAG_DRAW[code]||FLAG_DRAW.SI)(g,w,h); g.restore(); }
+const flagCache={};
+function flagURL(code){ if(flagCache[code]) return flagCache[code]; const cv=document.createElement('canvas'); cv.width=60; cv.height=40; drawFlag(cv.getContext('2d'),code,0,0,60,40); return flagCache[code]=cv.toDataURL('image/png'); }
+function detectCountry(){      // best guess of where the player connects from (browser language region); a server can replace this with the real thing. Fallback: Slovenia
+  try{ const L=(navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||'']); for(const l of L){ const m=/[-_]([A-Za-z]{2})\b/.exec(l); if(m&&FLAG_DRAW[m[1].toUpperCase()]) return m[1].toUpperCase(); } }catch(e){}
+  return 'SI';
+}
+function teamFlags(country,nats){      // the player's own country first, then any nationality with at least two characters in the team
+  const out=[country], cnt={}; nats.forEach(n=>{ cnt[n]=(cnt[n]||0)+1; });
+  Object.keys(cnt).filter(n=>cnt[n]>=2&&n!==country).sort((a,b)=>cnt[b]-cnt[a]).forEach(n=>out.push(n)); return out.slice(0,3);
+}
+function paintBanner(g,w,h,fP,fE){      // far-wall banner: your flags on the green side, theirs on the red side
+  g.fillStyle=hex(PAL.plum); g.fillRect(0,0,w,h); g.fillStyle=hex(PAL.mustard); g.fillRect(0,0,w,14); g.fillRect(0,h-14,w,14); g.fillRect(w/2-3,26,6,h-52);
+  [[fP,0,0x3fd15a],[fE,w/2,0xe5372b]].forEach(([fl,x0,col])=>{
+    const dx=x0===0?64:w-64; g.fillStyle=hex(col); g.beginPath(); g.arc(dx,h/2,34,0,7); g.fill(); g.strokeStyle=hex(PAL.cream); g.lineWidth=6; g.stroke();
+    const x1=x0===0?118:w/2+24, avail=w/2-142, gap=18, fw=Math.min(150,(avail-gap*(fl.length-1))/fl.length), fh=fw*2/3, tot=fl.length*fw+(fl.length-1)*gap, sx=x1+(avail-tot)/2;
+    fl.forEach((c,i)=>{ const x=sx+i*(fw+gap), y=(h-fh)/2; g.fillStyle=hex(PAL.cream); g.fillRect(x-5,y-5,fw+10,fh+10); drawFlag(g,c,x,y,fw,fh); });
+  });
+}
+const bannerTex=canvasTex(1024,256,(g,w,h)=>paintBanner(g,w,h,['SI'],['SI']));
+function setBanner(fP,fE){ paintBanner(bannerTex.image.getContext('2d'),1024,256,fP,fE); bannerTex.needsUpdate=true; }
 const skyMat=new THREE.MeshBasicMaterial({color:grade(0xbfe3f5,0.7,0.92)});
 
 /* ---------------- the gym (rebuilt when the layout switches between wide and narrow) ---------------- */
@@ -4835,6 +4868,8 @@ const FILLER_IDS=['bride','st1','st2','g1','g2','g3','g4','g5','g6'];   // every
 const POOL_IDS=FRIEND_IDS.concat(FILLER_IDS);
 const GENDER={bride:'F',st1:'M',st2:'F',g1:'F',g2:'F',g3:'F',g4:'F',g5:'F',g6:'F'};
 const NAMES_F=['Anna','Mia','Eva','Lea','Zoe','Ida','Nina','Kim','Ava','Mary','Lily','Rosa'], NAMES_M=['Tom','Max','Leo','Sam','Ben','Jack','Nick','Dan','Luke','Ian','Joe','Sid'];
+const NAT_FRIEND={tero:'MX',shani:'MX',erick:'MX',thomas:'FR',micael:'CA'}, NAT_RANDOM=['MX','FR','CA','SI','ES','BR'];
+const KO_VANISH=5;
 const SELECT_TIME=30, ROSTER_SIZE=10, TEAM_SIZE=4;
 
 /* ---- MATCH SETUP IS PLAIN DATA ----
@@ -4849,7 +4884,7 @@ function makeRoster(seed,fillers){
   ids.forEach(id=>{
     let name=DEFS[id].n;
     if(!FRIEND_IDS.includes(id)){ const pool=(GENDER[id]==='M'?NAMES_M:NAMES_F).filter(n=>!used.has(n)); name=pool[Math.floor(R()*pool.length)]; used.add(name); }
-    const s=STAT_COMBOS[Math.floor(R()*STAT_COMBOS.length)]; out.push({id,name,spd:s[0],str:s[1],hp:s[2]});
+    const s=STAT_COMBOS[Math.floor(R()*STAT_COMBOS.length)]; out.push({id,name,nat:NAT_FRIEND[id]||NAT_RANDOM[Math.floor(R()*NAT_RANDOM.length)],spd:s[0],str:s[1],hp:s[2]});
   });
   return shuf(out);
 }
@@ -4873,7 +4908,7 @@ async function buildChar(id,side){
   inst[side][id]=c; return c;
 }
 function ensureInst(side,id){ if(inst[side][id]) return Promise.resolve(inst[side][id]); const k=side+id; return pend[k]||(pend[k]=buildChar(id,side).finally(()=>{ delete pend[k]; })); }
-function applyEntry(c,e){ const d=derive(e); c.name=e.name; c.stats={spd:e.spd,str:e.str,hp:e.hp}; c.maxHp=d.maxHp; c.dmgBase=d.dmgBase; c.spdK=d.spdK; c.bar.querySelector('.nm').textContent=e.name; c.bar.style.setProperty('--w',Math.round(22+d.maxHp*0.32)+'px'); }
+function applyEntry(c,e){ const d=derive(e); c.name=e.name; c.nat=e.nat||'SI'; c.stats={spd:e.spd,str:e.str,hp:e.hp}; c.maxHp=d.maxHp; c.dmgBase=d.dmgBase; c.spdK=d.spdK; c.bar.querySelector('.nm').textContent=e.name; c.bar.style.setProperty('--w',Math.round(22+d.maxHp*0.32)+'px'); }
 const barsEl=(()=>{ let e=document.getElementById('dgBars'); if(!e){ e=document.createElement('div'); e.id='dgBars'; document.body.appendChild(e); } return e; })();
 let teamP=[], teamE=[];                         // the two squads (character records)
 const living=team=>team.filter(c=>!c.ko);
@@ -4882,7 +4917,7 @@ const other=side=>side==='P'?'E':'P';
 
 /* ---------------- state ---------------- */
 const S={ mode:'loading', t:0, turn:0, side:'P', phase:'none', phaseT:0, resolveDelay:0, thrower:null, ball:null, booster:null, bag:{P:[],E:[]}, lastTh:{P:null,E:null}, count:{P:0,E:0}, over:false, winner:null, overT:0, winT:0, loseT:0,
-  aiT:0, aiDelay:1.6, shake:0, best:0, newBest:false, auto:false, hitThisTurn:false, camPos:null, camTgt:new THREE.Vector3(), aim:{on:false,valid:false,sx:0,sy:0,cx:0,cy:0,dx:0,dz:-1,power:0} };
+  sutiOn:true, aiT:0, aiDelay:1.6, shake:0, best:0, newBest:false, auto:false, hitThisTurn:false, camPos:null, camTgt:new THREE.Vector3(), aim:{on:false,valid:false,sx:0,sy:0,cx:0,cy:0,dx:0,dz:-1,power:0} };
 try{ S.best=parseInt(localStorage.getItem('dodgeBest')||'0',10)||0; }catch(e){}
 const body=document.body;
 function setMode(m){ S.mode=m; body.classList.remove('loading','ready','playing','dead','over','selecting'); body.classList.add(m==='loading'?'loading':m==='ready'?'ready':m==='play'?'playing':m==='select'?'selecting':'dead'); }
@@ -4925,7 +4960,7 @@ function stepChars(dt){
   list.forEach(c=>{
     if(!c.active||c.ko) return;
     list.forEach(o=>{
-      if(o===c||!o.active||o.team!==c.team) return;
+      if(o===c||!o.active||o.gone||o.team!==c.team) return;
       const ex=c.x-o.x, ez=c.z-o.z, ed=Math.hypot(ex,ez), minD=o.ko?1.5:1.25;
       if(ed<minD&&ed>0.001){ const push=(minD-ed)*(o.ko?1:0.5); c.x+=ex/ed*push; c.z+=ez/ed*push; }
     });
@@ -5098,7 +5133,7 @@ function stepBall(dt){
         Object.assign(p,{ox:nx,oz:nz,dx,dz,s:0,L:E.L,edge:E.edge,x:nx,z:nz,reflected:true,barCd:0.2,kx:Math.floor((nx-bx0())/(bx1()-bx0())),kz:Math.floor((nz-bz0())/(bz1()-bz0())),sq:1});
         hsfx.bounce(); hsfx.block(); burst(nx,1.0,nz,10,0x8fa6f2); S.shake=Math.max(S.shake,0.12); popup('Bounce!',nx,2.2,nz); return;
       }
-      if(suti&&suti.state!=='snap'&&Math.hypot(p.x-suti.x,p.z-suti.z)<SUTI_R){          // Suti spots it: any ball inside her reach is gone
+      if(S.sutiOn&&suti&&suti.state!=='snap'&&Math.hypot(p.x-suti.x,p.z-suti.z)<SUTI_R){          // Suti spots it: any ball inside her reach is gone
         p.state='caught'; suti.state='snap'; suti.snapT=0; suti.sx=suti.x; suti.sz=suti.z; suti.qx=p.x; suti.qz=p.z; hsfx.snap(); popup('Nom!',suti.x,2.8,suti.z); return;
       }
       let hit=null;
@@ -5179,13 +5214,14 @@ window.addEventListener('keydown',e=>{ if(!active) return; if((e.code==='Space'|
    Two halves: the upper one is the OTHER player's roster and picks (today the computer; online: the opponent), the lower one is yours.
    S.sel is plain data {roster:{P,E},picks:{P,E},ready:{P,E},t}, so the same screen can be driven by messages from a server. */
 (function(){ if(document.getElementById('dgSelCss')) return; const st=document.createElement('style'); st.id='dgSelCss'; st.textContent=`
-.dgb{ flex-direction:column; align-items:stretch; gap:2px; padding:2px 6px 4px; border-radius:11px; }
-.dgb .nm{ font-size:10px; line-height:1; font-weight:700; text-align:center; color:#3b2b4f; white-space:nowrap; letter-spacing:.02em; }
-.dgb .hb{ display:block; position:relative; width:var(--w,54px); height:8px; border-radius:99px; background:rgba(59,43,79,.22); overflow:hidden; margin:0 auto; }
+.dgb{ display:block; padding:0; background:none; box-shadow:none; border-radius:0; }
+.dgb .nm{ display:none; }
+.dgb .hb{ display:block; position:relative; box-sizing:content-box; width:var(--w,54px); height:8px; border:2.5px solid #3b2b4f; border-radius:99px; background:rgba(40,28,60,.38); overflow:hidden; }
 .dgb .hb u{ position:absolute; left:0; top:0; bottom:0; width:100%; border-radius:99px; background:#3fd15a; transition:width .3s ease-out; }
 .dgb.E .hb u{ background:#e5372b; } .dgb.low .hb u{ animation:dgLow .5s steps(2) infinite; }
 @keyframes dgLow{ 50%{ filter:brightness(1.5); } }
-.dgb b{ position:absolute; right:-9px; top:-7px; }
+.dgb.sh .hb{ border-color:#4fb9ff; box-shadow:0 0 7px 1px rgba(79,185,255,.9); }
+.dgb b{ position:absolute; right:-14px; top:-6px; }
 body.selecting #hud{ opacity:1; } body.selecting #hud > div{ visibility:hidden; } body.selecting #home{ visibility:visible; }
 #dgSel{ position:fixed; z-index:3; display:none; flex-direction:column; overflow:hidden; color:#fff1d6; user-select:none; -webkit-user-select:none; touch-action:manipulation; --u:1; }
 #dgSel.on{ display:flex; }
@@ -5201,6 +5237,11 @@ body.selecting #hud{ opacity:1; } body.selecting #hud > div{ visibility:hidden; 
 #dgSel .up .cd{ cursor:default; pointer-events:none; }
 #dgSel .cd img{ flex:0 0 auto; height:100%; max-height:calc(var(--u)*58px); aspect-ratio:1/1; object-fit:cover; border-radius:calc(var(--u)*9px); background:rgba(0,0,0,.25); }
 #dgSel .cd .inf{ flex:1; min-width:0; display:flex; flex-direction:column; gap:calc(var(--u)*2px); }
+#dgSel .cd .rw{ display:flex; align-items:center; gap:calc(var(--u)*5px); min-width:0; }
+#dgSel .cd .fl{ flex:0 0 auto; height:calc(var(--u)*10px); width:auto; border-radius:2px; box-shadow:0 0 0 1px rgba(0,0,0,.45); }
+#dgSel .hr{ display:flex; align-items:center; gap:calc(var(--u)*6px); }
+#dgSel .su{ font:inherit; font-weight:700; font-size:calc(var(--u)*11px); letter-spacing:.04em; color:#10301f; background:#9af0b0; border:0; border-radius:99px; padding:calc(var(--u)*3px) calc(var(--u)*9px); cursor:pointer; box-shadow:0 2px 0 rgba(0,0,0,.35); }
+#dgSel .su.off{ background:#cfc6d6; color:#4a3b5a; } #dgSel .su.ro{ cursor:default; pointer-events:none; } #dgSel .su.rnd{ outline:2px dashed #fff1d6; outline-offset:2px; }
 #dgSel .cd .nm{ font-size:calc(var(--u)*14px); line-height:1.05; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #dgSel .cd .r{ display:flex; align-items:center; gap:calc(var(--u)*3px); }
 #dgSel .cd .l{ font-style:normal; font-size:calc(var(--u)*7.5px); font-weight:700; width:calc(var(--u)*21px); opacity:.85; letter-spacing:.03em; }
@@ -5224,14 +5265,25 @@ body.selecting #hud{ opacity:1; } body.selecting #hud > div{ visibility:hidden; 
 `; document.head.appendChild(st); })();
 
 const portraits={}; let portRT=null; const _hp2=new THREE.Vector3(), pcam=new THREE.PerspectiveCamera(26,1,0.1,60);
+const _hv=new THREE.Vector3();
+function headBox(c){            // world-space box of everything skinned to the head: every portrait is framed on it, so all faces are centred and the same size
+  const sk=c.h.skin, g=sk.geometry, si=g.attributes.skinIndex, sw=g.attributes.skinWeight, n=g.attributes.position.count, heads=new Set();
+  sk.skeleton.bones.forEach((b,i)=>{ if(/Head/.test(b.name)) heads.add(i); }); if(!heads.size) return null;
+  const mn=new THREE.Vector3(1e9,1e9,1e9), mx=new THREE.Vector3(-1e9,-1e9,-1e9);
+  for(let i=0;i<n;i++){ let w=0; if(heads.has(si.getX(i))) w+=sw.getX(i); if(heads.has(si.getY(i))) w+=sw.getY(i); if(heads.has(si.getZ(i))) w+=sw.getZ(i); if(heads.has(si.getW(i))) w+=sw.getW(i);
+    if(w<0.6) continue; sk.boneTransform(i,_hv); _hv.applyMatrix4(sk.matrixWorld); mn.min(_hv); mx.max(_hv); }
+  return mn.x>1e8?null:{mn,mx};
+}
 function portraitURL(id){                    // a head-and-shoulders picture rendered from the real 3D model (cached)
   if(portraits[id]) return portraits[id]; const c=inst.P[id]; if(!c) return '';
   const SZ=160; if(!portRT) portRT=new THREE.WebGLRenderTarget(SZ,SZ);
   const everyone=Object.values(inst.P).concat(Object.values(inst.E)), saved=everyone.map(x=>[x.h.g.visible,x.h.sh.visible,x.h.stars.map(q=>q.visible)]);
   everyone.forEach(x=>{ x.h.g.visible=false; x.h.sh.visible=false; x.h.stars.forEach(q=>q.visible=false); }); c.h.g.visible=true;
   placeHuman(c.h,idlePose(0),400,0,0,0,0,true,0);
-  const head=c.h.rig.bones[c.h.rig.idx('Head')]; head.getWorldPosition(_hp2);
-  pcam.position.set(_hp2.x,_hp2.y+0.03*c.H,_hp2.z+c.H*1.12); pcam.lookAt(_hp2.x,_hp2.y+0.0*c.H,_hp2.z); pcam.updateMatrixWorld();
+  const hb=headBox(c); if(hb){ const cx=(hb.mn.x+hb.mx.x)/2, cy=(hb.mn.y+hb.mx.y)/2, cz=(hb.mn.z+hb.mx.z)/2, sz=Math.max(hb.mx.y-hb.mn.y,hb.mx.x-hb.mn.x), d=(sz/0.8)/(2*Math.tan(THREE.MathUtils.degToRad(13)));
+    pcam.position.set(cx,cy,cz+d); pcam.lookAt(cx,cy,cz); }
+  else { const head=c.h.rig.bones[c.h.rig.idx('Head')]; head.getWorldPosition(_hp2); pcam.position.set(_hp2.x,_hp2.y+0.03*c.H,_hp2.z+c.H*1.12); pcam.lookAt(_hp2.x,_hp2.y,_hp2.z); }
+  pcam.updateMatrixWorld();
   const prevRT=renderer.getRenderTarget(), pc=new THREE.Color(), pa=renderer.getClearAlpha(); renderer.getClearColor(pc);
   renderer.setRenderTarget(portRT); renderer.setClearColor(0x000000,0); renderer.clear(); renderer.render(scene,pcam);
   const buf=new Uint8Array(SZ*SZ*4); renderer.readRenderTargetPixels(portRT,0,0,SZ,SZ,buf);
@@ -5249,21 +5301,21 @@ async function enterSelect(){
     stopConf(); hideAim(); setMode('select'); $('aimhint').classList.remove('on');
     for(const id of POOL_IDS){ if(!inst.P[id]){ try{ await ensureInst('P',id); }catch(e){} await yieldUI(); } }       // (they stream in while the title is up; this is a safety net)
     const have=FILLER_IDS.filter(id=>inst.P[id]), seed=(Math.random()*4294967296)>>>0;
-    S.sel={seed,roster:{P:makeRoster(seed^0x9e3779b1,have),E:makeRoster(seed^0x85ebca6b,have)},picks:{P:[],E:[]},ready:{P:false,E:false},t:SELECT_TIME,ai:1.4,goT:undefined,starting:false};
+    S.sel={seed,roster:{P:makeRoster(seed^0x9e3779b1,have),E:makeRoster(seed^0x85ebca6b,have)},picks:{P:[],E:[]},ready:{P:false,E:false},suti:{P:true,E:mulberry32(seed^0x51ed)()<0.5},sutiOn:true,locked:false,t:SELECT_TIME,ai:1.4,goT:undefined,starting:false};
     buildSel(); renderSel();
   } finally { S.selBusy=false; }
 }
 function buildSel(){
   const sel=S.sel; let el=document.getElementById('dgSel'); if(!el){ el=document.createElement('div'); el.id='dgSel'; document.body.appendChild(el); }
   const stat=(l,v,k)=>`<span class="r"><i class="l">${l}</i><span class="t ${k}">${[1,2,3,4,5].map(n=>`<u class="${n<=v?'f':''}"></u>`).join('')}</span></span>`;
-  const card=(e,side,i)=>`<button type="button" class="cd" data-side="${side}" data-i="${i}"><img alt="" src="${portraitURL(e.id)}"><span class="inf"><b class="nm">${e.name}</b>${stat('SPD',e.spd,'s')}${stat('STR',e.str,'t')}${stat('HP',e.hp,'h')}</span><em class="ord"></em></button>`;
-  el.innerHTML=`<div class="half up"><div class="hd"><b>ENEMY TEAM<span class="rdy" data-r="E">READY</span></b><span class="cnt" data-c="E">0/${TEAM_SIZE}</span></div><div class="grid" data-g="E">${sel.roster.E.map((e,i)=>card(e,'E',i)).join('')}</div></div>
+  const card=(e,side,i)=>`<button type="button" class="cd" data-side="${side}" data-i="${i}"><img alt="" src="${portraitURL(e.id)}"><span class="inf"><span class="rw"><b class="nm">${e.name}</b><img class="fl" alt="${e.nat}" src="${flagURL(e.nat)}"></span>${stat('SPD',e.spd,'s')}${stat('STR',e.str,'t')}${stat('HP',e.hp,'h')}</span><em class="ord"></em></button>`;
+  el.innerHTML=`<div class="half up"><div class="hd"><b>ENEMY TEAM<span class="rdy" data-r="E">READY</span></b><span class="hr"><span class="su ro" data-s="E">SUTI ON</span><span class="cnt" data-c="E">0/${TEAM_SIZE}</span></span></div><div class="grid" data-g="E">${sel.roster.E.map((e,i)=>card(e,'E',i)).join('')}</div></div>
 <div class="tm"><span class="tt">${SELECT_TIME}</span></div>
-<div class="half dn"><div class="hd"><b class="big">SELECT YOUR TEAM!<span class="rdy" data-r="P">READY</span></b><span class="cnt" data-c="P">0/${TEAM_SIZE}</span></div><div class="grid" data-g="P">${sel.roster.P.map((e,i)=>card(e,'P',i)).join('')}</div>
+<div class="half dn"><div class="hd"><b class="big">SELECT YOUR TEAM!<span class="rdy" data-r="P">READY</span></b><span class="hr"><button type="button" class="su" data-s="P">SUTI ON</button><span class="cnt" data-c="P">0/${TEAM_SIZE}</span></span></div><div class="grid" data-g="P">${sel.roster.P.map((e,i)=>card(e,'P',i)).join('')}</div>
 <div class="ft"><div class="slots">${[0,1,2,3].map(k=>`<button type="button" class="sl" data-k="${k}"></button>`).join('')}</div><button type="button" class="go" disabled>FIGHT!</button></div></div>`;
   el.onclick=e=>{
-    const cd=e.target.closest('.cd'), sl=e.target.closest('.sl'), go=e.target.closest('.go');
-    if(cd&&cd.dataset.side==='P') togglePick(+cd.dataset.i); else if(sl){ const e2=S.sel&&S.sel.picks.P[+sl.dataset.k]; if(e2) togglePick(S.sel.roster.P.indexOf(e2)); } else if(go&&!go.disabled) confirmPicks();
+    const cd=e.target.closest('.cd'), sl=e.target.closest('.sl'), go=e.target.closest('.go'), su=e.target.closest('.su[data-s="P"]');
+    if(su){ if(S.sel&&!S.sel.ready.P&&!S.sel.locked){ S.sel.suti.P=!S.sel.suti.P; hsfx.pick(); renderSel(); } } else if(cd&&cd.dataset.side==='P') togglePick(+cd.dataset.i); else if(sl){ const e2=S.sel&&S.sel.picks.P[+sl.dataset.k]; if(e2) togglePick(S.sel.roster.P.indexOf(e2)); } else if(go&&!go.disabled) confirmPicks();
   };
   frameSel(); el.classList.add('on');
 }
@@ -5284,15 +5336,20 @@ function renderSel(){
     el.querySelector('.rdy[data-r="'+side+'"]').classList.toggle('on',sel.ready[side]);
   });
   el.querySelectorAll('.sl').forEach((sl,k)=>{ const e=sel.picks.P[k]; sl.classList.toggle('f',!!e); sl.innerHTML=e?`<img alt="${e.name}" src="${portraitURL(e.id)}">`:''; });
+  ['P','E'].forEach(side=>{ const b=el.querySelector('.su[data-s="'+side+'"]'), on=sel.suti[side]; b.textContent='SUTI '+(on?'ON':'OFF'); b.classList.toggle('off',!on); b.classList.toggle('rnd',!!sel.rnd); });
   const go=el.querySelector('.go'); go.disabled=sel.ready.P||sel.picks.P.length<TEAM_SIZE; go.textContent=sel.ready.P?'WAITING…':'FIGHT!';
+}
+function lockIn(){      // both sides are done: if the two players disagree about Suti, the computer flips a coin (seeded, so a server can do the same)
+  const sel=S.sel; if(sel.locked) return; sel.locked=true;
+  sel.rnd=sel.suti.P!==sel.suti.E; sel.sutiOn=sel.rnd?(mulberry32(sel.seed^0x7777)()<0.5):sel.suti.P; sel.suti.P=sel.suti.E=sel.sutiOn; renderSel();
 }
 function stepSelect(dt){
   const sel=S.sel; if(!sel||sel.starting) return;
   if(sel.goT===undefined){
     sel.t=Math.max(0,sel.t-dt);
     if(!sel.ready.E){ sel.ai-=dt; if(sel.ai<=0){ aiPick(); sel.ai=rr(0.8,1.9); } }          // the opponent picks one by one, in plain view
-    if(sel.t<=0){ autofill('P'); autofill('E'); sel.ready.P=sel.ready.E=true; renderSel(); sel.goT=0.9; }           // time is up: the computer completes whoever has not finished
-    else if(sel.ready.P&&sel.ready.E) sel.goT=0.5;
+    if(sel.t<=0){ autofill('P'); autofill('E'); sel.ready.P=sel.ready.E=true; lockIn(); sel.goT=0.9; }           // time is up: the computer completes whoever has not finished
+    else if(sel.ready.P&&sel.ready.E){ lockIn(); sel.goT=0.5; }
   } else { sel.goT-=dt; if(sel.goT<=0){ sel.starting=true; startMatch(); } }
   const tm=document.querySelector('#dgSel .tm'); if(tm){ tm.firstChild.textContent=String(Math.ceil(sel.t)); tm.classList.toggle('hot',sel.t<=10&&sel.goT===undefined); }
 }
@@ -5302,11 +5359,14 @@ async function startMatch(){
     const mk=side=>Promise.all(sel.picks[side].map(async e=>{ const c=await ensureInst(side,e.id); applyEntry(c,e); return c; }));
     const [P,E]=await Promise.all([mk('P'),mk('E')]);
     [...teamP,...teamE].forEach(c=>{ c.active=false; c.h.g.visible=c.h.sh.visible=false; c.ring.visible=false; c.bubble.visible=false; c.h.stars.forEach(s=>s.visible=false); c.bar.style.visibility='hidden'; });
-    teamP=P; teamE=E; hideSel(); beginMatch(); hsfx.go();
+    lockIn(); teamP=P; teamE=E; S.sutiOn=sel.sutiOn;
+    S.country={P:detectCountry(),E:'SI'};            // (online: each player's real country; the fallback is Slovenia)
+    setBanner(teamFlags(S.country.P,P.map(c=>c.nat)),teamFlags(S.country.E,E.map(c=>c.nat)));
+    hideSel(); beginMatch(); hsfx.go();
   }catch(err){ console.error(err); sel.starting=false; sel.goT=undefined; }
 }
 async function quickStart(picksP,picksE){            // (tests / future "rematch"): select instantly and go
-  await enterSelect(); const sel=S.sel; autofill('P'); autofill('E'); sel.ready.P=sel.ready.E=true; sel.starting=true; await startMatch();
+  await enterSelect(); const sel=S.sel; autofill('P'); autofill('E'); sel.ready.P=sel.ready.E=true; lockIn(); sel.starting=true; await startMatch();
 }
 
 /* ---------------- match flow ---------------- */
@@ -5324,7 +5384,7 @@ function resetMatch(){
   [['P',teamP],['E',teamE]].forEach(([side,sq])=>{
     const xs=shuffle([-0.75,-0.25,0.25,0.75]);
     sq.forEach((c,i)=>{
-      c.team=side; c.active=true; c.hp=c.maxHp; c.shield=false; c.ko=false; c.koT=0; c.stun=0; c.thr=-1; c.aimV=0; c.faceT=0; c.flash=0; c.vx=c.vz=0; c.wait=0; c.legT=rr(0,0.5); c.mul=1; c.wave=false;
+      c.team=side; c.active=true; c.gone=false; c.h.g.scale.setScalar(1); c.hp=c.maxHp; c.shield=false; c.ko=false; c.koT=0; c.stun=0; c.thr=-1; c.aimV=0; c.faceT=0; c.flash=0; c.vx=c.vz=0; c.wait=0; c.legT=rr(0,0.5); c.mul=1; c.wave=false;
       const b=bounds(c); c.x=xs[i]*(HW-1.8); c.z=(S.mode==='ready'&&side==='E')?rr(-5.0,-2.0):rr(b.z0+0.6,b.z1-0.6);       // on the title screen the enemy stays below the logo
       c.yaw=side==='E'?0:Math.PI; c.dyaw=c.yaw; pickTarget(c);
       c.h.g.visible=c.h.sh.visible=true; c.h.skin.material.color.setHex(0xffffff);
@@ -5403,6 +5463,7 @@ function throwerArm(c){
 }
 function placeChar(c,dt){
   const m=S.mode, t=S.t; if(!c.active) return;
+  if(c.ko&&m!=='ready'&&c.koT>=KO_VANISH){ if(!c.gone){ c.gone=true; c.h.g.visible=c.h.sh.visible=false; c.h.stars.forEach(s=>s.visible=false); c.ring.visible=false; c.bubble.visible=false; } return; }       // after 5 seconds on the floor they are gone
   const side=c.team, isTh=(S.thrower===c&&(S.phase==='hold'||c.thr>=0)), win=(m==='win'||m==='lose')?(S.winner===side):false;
   let p, yawT=c.yaw, pitch=0, fix=true, lift=0, stars=false, sx=c.x, sy=c.H+0.8, sz=c.z, y=0;
   if(m==='ready'){ p=(c.id==='tero'||c.id==='thomas'||c.id==='micael')?waveHi(t+c.ph0):idlePose(t+c.ph0); yawT=side==='E'?0:Math.PI; }
@@ -5425,8 +5486,9 @@ function placeChar(c,dt){
   c.dyaw+=angDiff(c.dyaw,yawT)*Math.min(1,dt*(c.ko?30:14));
   if(m==='play'&&c.flash>0){ c.h.skin.material.color.setRGB(1,0.5,0.5); } else c.h.skin.material.color.setHex(0xffffff);
   placeHuman(c.h,p,c.x,y,c.z,c.dyaw,pitch,fix,lift);
-  if(c.ko){ const u=ease(clamp(c.koT/0.45,0,1)); c.h.sh.position.set(c.x-Math.sin(c.koYaw)*c.H*0.42*u,0.03,c.z-Math.cos(c.koYaw)*c.H*0.42*u); c.h.sh.scale.set(1.3,1.3,1); }
-  showStars(c.h,sx,sy,sz,stars&&(m!=='ready'),t);
+  const fade=c.ko?clamp((KO_VANISH-c.koT)/0.5,0,1):1; c.h.g.scale.setScalar(Math.max(0.001,fade));        // they shrink away during the last half second
+  if(c.ko){ const u=ease(clamp(c.koT/0.45,0,1)); c.h.sh.position.set(c.x-Math.sin(c.koYaw)*c.H*0.42*u,0.03,c.z-Math.cos(c.koYaw)*c.H*0.42*u); c.h.sh.scale.set(1.3*fade,1.3*fade,1); }
+  showStars(c.h,sx,sy,sz,stars&&(m!=='ready')&&fade>=1,t);
   // rings under the feet mark the hitbox (the active thrower gets a pulsing one)
   c.ring.visible=(m==='play'&&!c.ko); c.ring.position.set(c.x,0.05,c.z); c.ring.scale.setScalar(isTh?1.12+0.08*Math.sin(t*8):1); c.ring.material.opacity=isTh?0.95:0.5;
   c.ring.material.color.setHex(isTh?RAW.mustard:(c.shield?0x4fb9ff:(side==='P'?C_P:C_E)));
@@ -5491,7 +5553,7 @@ function sutiPick(w){ const b=sutiBounds(); for(let k=0;k<12;k++){ const x=rr(b.
 function sutiPark(){ const w=suti; if(!w) return; w.x=HW-1.2; w.z=ZF+1.2; w.state='walk'; w.wait=99; }
 function sutiReset(){ const w=suti; if(!w) return; const b=sutiBounds(); w.x=rr(b.x0,b.x1); w.z=rr(-2.5,2.5); w.state='walk'; w.wait=0; w.bob=0; w.mul=1.1; w.revT=0.8; w.yaw=0; w.ph=0; sutiPick(w); }
 function stepSuti(dt){
-  const w=suti; if(!w) return;
+  const w=suti; if(!w||!S.sutiOn) return;
   if(w.state==='snap'){
     w.snapT+=dt; const u=Math.min(1,w.snapT/0.2); w.x=lerp(w.sx,w.qx,ease(u)); w.z=lerp(w.sz,w.qz,ease(u)); w.bob=Math.sin(u*Math.PI)*0.8;
     w.yaw+=angDiff(w.yaw,Math.atan2(w.qx-w.sx,w.qz-w.sz))*Math.min(1,dt*20);
@@ -5508,7 +5570,7 @@ function stepSuti(dt){
   const b=sutiBounds(); w.x=clamp(w.x,b.x0,b.x1); w.z=clamp(w.z,b.z0,b.z1);
 }
 function placeSuti(){
-  const w=suti; if(!w) return; const m=S.mode, vis=(m!=='ready'); w.g.visible=w.sh.visible=vis; if(!vis) return;
+  const w=suti; if(!w) return; const m=S.mode, vis=(m!=='ready'&&S.sutiOn); w.g.visible=w.sh.visible=vis; if(!vis) return;
   const moving=(m==='play'||m==='win'||m==='lose')&&w.wait<=0&&w.state==='walk';
   const sy=(moving?(1-Math.cos(w.ph*2))*0.07:0)+w.bob;
   w.g.position.set(w.x,sy,w.z); w.g.rotation.y=w.yaw; w.body.rotation.set((moving?Math.sin(w.ph*2)*0.16:0)-w.bob*0.25,0,0);
