@@ -4610,13 +4610,11 @@ function teamFlag(country,nats){      // ONE flag per team: a nationality shared
   const cnt={}; nats.forEach(n=>{ cnt[n]=(cnt[n]||0)+1; }); let best=null; nats.forEach(n=>{ if(cnt[n]>=2&&(!best||cnt[n]>cnt[best])) best=n; });
   return [best||country];
 }
-function paintBanner(g,w,h,fP,fE){      // far-wall banner: your flags on the green side, theirs on the red side
-  g.fillStyle=hex(PAL.plum); g.fillRect(0,0,w,h); g.fillStyle=hex(PAL.mustard); g.fillRect(0,0,w,14); g.fillRect(0,h-14,w,14); g.fillRect(w/2-3,26,6,h-52);
-  [[fP,0,0x3fd15a],[fE,w/2,0xe5372b]].forEach(([fl,x0,col])=>{
-    const dx=x0===0?64:w-64; g.fillStyle=hex(col); g.beginPath(); g.arc(dx,h/2,34,0,7); g.fill(); g.strokeStyle=hex(PAL.cream); g.lineWidth=6; g.stroke();
-    const x1=x0===0?118:w/2+24, avail=w/2-142, gap=18, fw=Math.min(200,(avail-gap*(fl.length-1))/fl.length), fh=fw*2/3, tot=fl.length*fw+(fl.length-1)*gap, sx=x1+(avail-tot)/2;
-    fl.forEach((c,i)=>{ const x=sx+i*(fw+gap), y=(h-fh)/2; g.fillStyle=hex(PAL.cream); g.fillRect(x-5,y-5,fw+10,fh+10); drawFlag(g,c,x,y,fw,fh); });
-  });
+function paintBanner(g,w,h,fP,fE){      // far wall: just the ENEMY team's flag, hanging there with nothing around it
+  g.clearRect(0,0,w,h);
+  if(!fE||!fE.length) return;
+  const gap=24, fh=h*0.84, fw=Math.min(fh*1.5,(w-gap*(fE.length-1))/fE.length), fh2=fw/1.5, tot=fE.length*fw+(fE.length-1)*gap, sx=(w-tot)/2;
+  fE.forEach((c,i)=>{ drawFlag(g,c,sx+i*(fw+gap),(h-fh2)/2,fw,fh2); });
 }
 const bannerTex=canvasTex(1024,256,(g,w,h)=>paintBanner(g,w,h,['SI'],['SI']));
 function setBanner(fP,fE){ if(!S.tut) S.bannerFlags=[fP,fE]; paintBanner(bannerTex.image.getContext('2d'),1024,256,fP,fE); bannerTex.needsUpdate=true; }
@@ -4771,7 +4769,7 @@ function buildEnv(n){
     const fwid=5.0, fh=3.0, gm=new THREE.PlaneBufferGeometry(fwid,fh,30,12), fm=new THREE.Mesh(gm,new THREE.MeshBasicMaterial({map:(AL?pirateFlagTex():castleFlagTex()),transparent:true,alphaTest:0.05,side:THREE.DoubleSide,color:0xe6e0e0}));
     fm.position.set(0,2.62,ZF-0.4); const pa=gm.attributes.position, bx=new Float32Array(pa.count), by=new Float32Array(pa.count); for(let i=0;i<pa.count;i++){ bx[i]=pa.getX(i); by[i]=pa.getY(i); } fm.userData={bx,by,w:fwid}; S.flagMesh=fm; env.add(fm);
   } else {
-    const bn=new THREE.Mesh(new THREE.PlaneBufferGeometry(narrow?6.4:8.8,narrow?1.6:2.2),new THREE.MeshBasicMaterial({map:bannerTex})); bn.position.set(0,3.2,ZF-0.46); env.add(bn); S.bnMesh=bn;
+    const bn=new THREE.Mesh(new THREE.PlaneBufferGeometry(narrow?9.6:12.8,narrow?2.4:3.2),new THREE.MeshBasicMaterial({map:bannerTex,transparent:true,alphaTest:0.04})); bn.position.set(0,3.1,ZF-0.46); env.add(bn); S.bnMesh=bn;
   }
   // padded rails along the edge of the court, right where the ball bounces
   const RC=AL?[0x57534f,0x57534f,0x625d58,0x625d58]:DG?[0x34313f,0x34313f,0x403c4d,0x403c4d]:[PAL.plum,PAL.teal,PAL.periD,PAL.periD];
@@ -5566,8 +5564,8 @@ function stepBall(dt){
         else { const sd=px0>bar.x?1:-1; dx=sd*Math.abs(dx); nx=bar.x+sd*(BAR_HW+BALL_R*0.7+0.03); }
         dx+=bar.dir*(BAR_SPD/BALL_SPEED)*0.6; const l=Math.hypot(dx,dz)||1; dx/=l; dz/=l;           // the sliding bar gives it a little sideways kick
         const rem=Math.max(4,p.L-p.s), E=ballEnd(nx,nz,dx,dz,rem,p.walls||0);
-        Object.assign(p,{ox:nx,oz:nz,dx,dz,s:0,L:E.L,edge:E.edge,x:nx,z:nz,reflected:true,barCd:0.2,kx:Math.floor((nx-bx0())/(bx1()-bx0())),kz:Math.floor((nz-bz0())/(bz1()-bz0())),sq:1});
-        hsfx.bounce(); hsfx.block(); burst(nx,1.0,nz,10,0x8fa6f2); S.shake=Math.max(S.shake,0.12); popup('Bounce!',nx,2.2,nz); return;
+        Object.assign(p,{ox:nx,oz:nz,dx,dz,s:0,L:E.L,edge:E.edge,x:nx,z:nz,reflected:true,barX3:true,barCd:0.2,kx:Math.floor((nx-bx0())/(bx1()-bx0())),kz:Math.floor((nz-bz0())/(bz1()-bz0())),sq:1});
+        hsfx.bounce(); hsfx.block(); burst(nx,1.0,nz,10,0x8fa6f2); S.shake=Math.max(S.shake,0.12); popup('Bounce! 3X',nx,2.2,nz); return;
       }
       if(S.sutiOn&&p.mult<=1&&(!S.boss||p.team==='P')&&suti&&suti.state!=='snap'&&Math.hypot(p.x-suti.x,p.z-suti.z)<(S.boss?SUTI_RB:SUTI_R)){          // Suti spots it: any ball inside her reach is gone
         p.state='caught'; suti.state='snap'; suti.snapT=0; suti.sx=suti.x; suti.sz=suti.z; suti.qx=p.x; suti.qz=p.z; hsfx.snap(); popup('Nom!',suti.x,2.8,suti.z); return;
@@ -5577,7 +5575,7 @@ function stepBall(dt){
       for(const c of (p.reflected?squad('P').concat(squad('E')):squad(other(p.team)))){ if(c.ko||!c.active) continue; if(Math.hypot(p.x-c.x,apz-c.z)<CH_R*(c.big||1)){ hit=c; break; } }
       if(hit&&p.demo){ hit.stun=1.1; hit.flash=0.25; hsfx.ouch(); burst(p.x,1.4,p.z,12,0x35c14a); popup('Nice!',hit.x,hit.H+0.7,hit.z); killBall(p); S.ball=null; endTurn(0); return; }
       if(hit&&S.boss&&!p.demo){ const bk=blockFor(hit); if(bk){ blockHit(bk); killBall(p); S.ball=null; endTurn(0.9); return; } }
-      if(hit){ applyHit(hit,p); killBall(p); S.ball=null; endTurn(S.over?1.5:(hit.stun>0?1.15:0.8)); return; }
+      if(hit){ if(p.barX3&&hit.team!==p.team){ applyHit(hit,Object.assign({},p,{dmg:p.dmg*3})); popup('3X BOUNCE!',hit.x,hit.H+1.3,hit.z); } else applyHit(hit,p); killBall(p); S.ball=null; endTurn(S.over?1.5:(hit.stun>0?1.15:0.8)); return; }
       if(p.s>=p.L){ if(p.edge){ p.state='pop'; p.landT=0; burst(p.x,p.y,p.z,9,p.team==='P'?0x35c14a:0xe8302a); hsfx.bounce(); } else { p.state='land'; p.landT=0; } }
     } else if(p.landT>0.95){ killBall(p); S.ball=null; endTurn(0.55); }
   }
@@ -5661,6 +5659,7 @@ body[data-game="dodge"] #dgMenuBtns{ display:flex; }
 .dgm{ font:inherit; font-weight:700; font-size:clamp(19px,min(4.8vw,3.4vh),28px); letter-spacing:.03em; color:var(--plum); background:var(--mustard); border:0; border-radius:999px; padding:7px 22px 10px; box-shadow:0 0 0 4px var(--plum),0 7px 0 4px var(--plum); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; }
 .dgm.t{ background:var(--teal); color:var(--cream); } .dgm.d{ background:#f09a4a; } .dgm:active:not(:disabled){ transform:translateY(4px); box-shadow:0 0 0 4px var(--plum),0 3px 0 4px var(--plum); }
 .dgm:disabled{ background:#8d869a; color:#4b4160; box-shadow:0 0 0 4px #4b4160,0 7px 0 4px #4b4160; cursor:default; }
+.dgm[data-a=creator]{ font-size:clamp(15px,min(3.9vw,2.8vh),23px); white-space:nowrap; }
 .dgm i{ font-style:normal; font-size:.46em; background:#4b4160; color:#d9d2e6; border-radius:99px; padding:2px 9px 3px; letter-spacing:.06em; }
 #dgTitleBg{ display:none; position:fixed; inset:0; z-index:2; background:linear-gradient(180deg,#d4f1dd 0%,#7fcfa0 100%); overflow:hidden; }
 #dgTitleBg img{ position:absolute; left:50%; top:17%; height:44%; width:min(100%,640px); transform:translateX(-50%); object-fit:contain; filter:drop-shadow(0 7px 0 rgba(59,43,79,.16)); }
@@ -5681,7 +5680,7 @@ body.tut #dgTut{ display:block; } body.tut #dgTurn{ display:none !important; } b
 @keyframes dgBigA{ 0%{ transform:translate(-50%,-50%) scale(.3); opacity:0; } 14%{ transform:translate(-50%,-50%) scale(1.15); opacity:1; } 26%{ transform:translate(-50%,-50%) scale(1); } 80%{ opacity:1; } 100%{ opacity:0; } }
 `; document.head.appendChild(st);
   const bt=document.querySelector('#start .bottom'); if(bt&&!document.getElementById('dgMenuBtns')){ const m=document.createElement('div'); m.id='dgMenuBtns';
-    m.innerHTML='<button type="button" class="dgm t" data-a="tut">TUTORIAL</button><button type="button" class="dgm" data-a="game">GAME MODE</button><button type="button" class="dgm" data-a="boss">STORY MODE</button><button type="button" class="dgm" data-a="online" disabled>ONLINE MODE <i>SOON</i></button><button type="button" class="dgm" data-a="coop" disabled>COOP MODE <i>SOON</i></button>'; bt.insertBefore(m,bt.firstChild);
+    m.innerHTML='<button type="button" class="dgm t" data-a="tut">TUTORIAL</button><button type="button" class="dgm" data-a="game">GAME MODE</button><button type="button" class="dgm" data-a="boss">STORY MODE</button><button type="button" class="dgm" data-a="online" disabled>ONLINE MODE <i>SOON</i></button><button type="button" class="dgm" data-a="coop" disabled>CO-OP MODE <i>SOON</i></button><button type="button" class="dgm" data-a="creator" disabled>CHARACTER CREATOR <i>SOON</i></button>'; bt.insertBefore(m,bt.firstChild);
     m.addEventListener('click',e=>{ const b=e.target.closest('.dgm'); if(!b||b.disabled) return; e.stopPropagation(); if(b.dataset.a==='tut') startTutorial(); else if(b.dataset.a==='game'||b.dataset.a==='dog'||b.dataset.a==='boss'){ S.dog=(b.dataset.a==='dog'); S.boss=(b.dataset.a==='boss'); audio(); startPlay(); } }); }
   if(!document.getElementById('dgTitleBg')){ const hero=document.querySelector('.card.dodge .hero'), bg=document.createElement('div'); bg.id='dgTitleBg'; if(hero){ const im=document.createElement('img'); im.alt=''; im.src=hero.src; bg.appendChild(im); } document.body.appendChild(bg); }
   if(!document.getElementById('dgTut')){ const t=document.createElement('div'); t.id='dgTut'; t.innerHTML='<div class="pl"><span>TUTORIAL</span><span class="d"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i></span></div><button type="button" class="x" aria-label="Close tutorial">✕</button>'; document.body.appendChild(t);
