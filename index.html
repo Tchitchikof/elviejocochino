@@ -5211,9 +5211,9 @@ const SELECT_TIME=30, ROSTER_SIZE=6, TEAM_SIZE=4;
    derive(entry) is the ONE place where stats turn into game numbers. */
 function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 const STAT_COMBOS=(()=>{ const o=[]; for(let a=1;a<=5;a++)for(let b=1;b<=5;b++)for(let c=1;c<=5;c++)for(let d=1;d<=5;d++) if(a+b+c+d===12) o.push([a,b,c,d]); return o; })();
-function makeRoster(seed,fillers){
+function makeRoster(seed,fillers,size){
   const R=mulberry32(seed), shuf=a=>{ for(let i=a.length-1;i>0;i--){ const j=Math.floor(R()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; };
-  const ids=shuf(fillers.slice()).slice(0,ROSTER_SIZE), used=new Set(ids.filter(id=>FRIEND_IDS.includes(id)).map(id=>DEFS[id].n)), out=[];      // six at random out of everybody (the story enemies and Suti are never in the pool)
+  const ids=shuf(fillers.slice()).slice(0,size||ROSTER_SIZE), used=new Set(ids.filter(id=>FRIEND_IDS.includes(id)).map(id=>DEFS[id].n)), out=[];      // six at random out of everybody (the story enemies and Suti are never in the pool)
   ids.forEach(id=>{
     let name=DEFS[id].n;
     if(!FRIEND_IDS.includes(id)){ const pool=(GENDER[id]==='M'?NAMES_M:NAMES_F).filter(n=>!used.has(n)); name=pool[Math.floor(R()*pool.length)]; used.add(name); }
@@ -6407,7 +6407,10 @@ async function enterSelect(st){
     if(st===2&&!S.boss){ S.run.rosterP.forEach(e=>{ e.dead=false; }); S.sel.roster.P=S.run.rosterP; S.sel.sutiOn=true; S.sel.suti={P:true,E:true}; }          // GAME MODE, second match: your same six friends, a brand-new enemy team, and Suti joins in
     if(st>=1&&S.boss){ const run=S.run; run.rosterP.forEach(e=>{ e.dead=run.dead.has(e.id); }); S.sel.roster.P=run.rosterP; S.sel.roster.E=makeBossRoster(seed,st); S.sel.picks.E=S.sel.roster.E.slice(); S.sel.ready.E=true;
       S.sel.need=Math.max(1,Math.min(TEAM_SIZE,run.rosterP.filter(e=>!e.dead).length)); S.sel.sutiOn=!!S.sutiPref; S.sel.suti={P:!!S.sutiPref,E:!!S.sutiPref}; }
+    if(S.online&&S.net&&S.net.started){ const sd=S.net.seed|0, mine=(S.net.role==='P1')?(sd^0x1357AAAA):(sd^0x2468BBBB), theirs=(S.net.role==='P1')?(sd^0x2468BBBB):(sd^0x1357AAAA);
+      S.sel.roster.P=makeRoster(mine,POOL_IDS,8); S.sel.roster.E=makeRoster(theirs,POOL_IDS,8); S.sel.online=true; S.sel.suti={P:false,E:false}; S.sel.sutiOn=false; S.sel.picks={P:[],E:[]}; S.sel.ready={P:false,E:false}; S.sel.seed=sd; S.sel.ai=1e9; }
     buildSel(); renderSel(); hideLoad();
+    if(S.sel&&S.sel.online&&S.netQ&&S.netQ.length){ const q=S.netQ; S.netQ=[]; q.forEach(netIn); }
   } finally { S.selBusy=false; if(!S.sel||S.mode!=='select') hideLoad(); }
 }
 function makeBossRoster(seed,stage){
@@ -6435,14 +6438,15 @@ function buildSel(){
     const cd=e.target.closest('.cd'), sl=e.target.closest('.sl'), go=e.target.closest('.go'), su=e.target.closest('.su[data-s="P"]');
     if(su){ if(S.sel&&!S.sel.ready.P&&!S.sel.locked){ S.sel.suti.P=!S.sel.suti.P; hsfx.pick(); renderSel(); } } else if(cd&&cd.dataset.side==='P') togglePick(+cd.dataset.i); else if(sl){ const e2=S.sel&&S.sel.picks.P[+sl.dataset.k]; if(e2) togglePick(S.sel.roster.P.indexOf(e2)); } else if(go&&!go.disabled) confirmPicks();
   };
-  frameSel(); el.classList.add('on');
+  el.classList.toggle('online',!!sel.online); frameSel(); el.classList.add('on');
 }
 function togglePick(i){
   const sel=S.sel; if(!sel||sel.ready.P||sel.starting) return; const e=sel.roster.P[i]; if(!e||e.dead) return; const k=sel.picks.P.indexOf(e);
   if(k>=0){ sel.picks.P.splice(k,1); hsfx.unpick(); } else if(sel.picks.P.length<(sel.need||TEAM_SIZE)){ sel.picks.P.push(e); hsfx.pick(); }        // a character can only be picked once per team
+  if(sel.online) netSend({k:'pick',ids:sel.picks.P.map(x=>x.id)});
   renderSel();
 }
-function confirmPicks(){ const sel=S.sel; if(!sel||sel.ready.P||sel.picks.P.length<(sel.need||TEAM_SIZE)) return; sel.ready.P=true; hsfx.turn(); renderSel(); }
+function confirmPicks(){ const sel=S.sel; if(!sel||sel.ready.P||sel.picks.P.length<(sel.need||TEAM_SIZE)) return; sel.ready.P=true; hsfx.turn(); if(sel.online) netSend({k:'ready',ids:sel.picks.P.map(x=>x.id),c:detectCountry()}); renderSel(); }
 function autofill(side){ const sel=S.sel, free=shuffle(sel.roster[side].filter(e=>!e.dead&&!sel.picks[side].includes(e))); while(sel.picks[side].length<(side==='P'?(sel.need||TEAM_SIZE):TEAM_SIZE)&&free.length) sel.picks[side].push(free.pop()); }
 function aiPick(){ const sel=S.sel; autofillOne('E'); if(sel.picks.E.length>=TEAM_SIZE){ sel.ready.E=true; } renderSel(); }
 function autofillOne(side){ const sel=S.sel, free=sel.roster[side].filter(e=>!sel.picks[side].includes(e)); if(free.length&&sel.picks[side].length<TEAM_SIZE){ sel.picks[side].push(free[Math.floor(Math.random()*free.length)]); hsfx.pick(); } }
@@ -6464,8 +6468,8 @@ function stepSelect(dt){
   const sel=S.sel; if(!sel||sel.starting) return;
   if(sel.goT===undefined){
     sel.t=Math.max(0,sel.t-dt);
-    if(!sel.ready.E){ sel.ai-=dt; if(sel.ai<=0){ aiPick(); sel.ai=rr(0.8,1.9); } }          // the opponent picks one by one, in plain view
-    if(sel.t<=0){ autofill('P'); autofill('E'); sel.ready.P=sel.ready.E=true; lockIn(); sel.goT=0.9; }           // time is up: the computer completes whoever has not finished
+    if(!sel.online&&!sel.ready.E){ sel.ai-=dt; if(sel.ai<=0){ aiPick(); sel.ai=rr(0.8,1.9); } }          // the opponent picks one by one, in plain view
+    if(sel.online){ stepSelOnline(dt,sel); } else if(sel.t<=0){ autofill('P'); autofill('E'); sel.ready.P=sel.ready.E=true; lockIn(); sel.goT=0.9; }           // time is up: the computer completes whoever has not finished
     else if(sel.ready.P&&sel.ready.E){ lockIn(); sel.goT=0.5; }
   } else { sel.goT-=dt; if(sel.goT<=0){ sel.starting=true; startMatch(); } }
   const tm=document.querySelector('#dgSel .tm'); if(tm){ tm.firstChild.textContent=String(Math.ceil(sel.t)); tm.classList.toggle('hot',sel.t<=10&&sel.goT===undefined); }
@@ -6483,9 +6487,9 @@ async function startMatch(){
     if(S.boss&&st===1) ['wizard','ghost','ghost2','ghost3','ghost4'].forEach(id=>{ ensureInst('E',id).catch(()=>{}); });
     if(S.boss&&st===2) ['boss','frog','frog2'].forEach(id=>{ ensureInst('E',id).catch(()=>{}); });
     if(S.boss&&st>=1) bigText('STAGE '+(st+1)+'!',1200);      // the next stage loads in the background
-    S.country={P:detectCountry(),E:'SI'};            // (online: each player's real country; the fallback is Slovenia)
+    S.country={P:detectCountry(),E:((S.online&&S.oppCountry&&FLAG_DRAW[S.oppCountry])?S.oppCountry:'SI')};            // (online: each player's real country; the fallback is Slovenia)
     setBanner(teamFlag(S.country.P,P.map(c=>c.nat)),teamFlag(S.country.E,E.map(c=>c.nat)));
-    hideSel(); beginMatch();
+    hideSel(); if(S.online) onlineCourt(); else beginMatch();
   }catch(err){ console.error(err); sel.starting=false; sel.goT=undefined; }
 }
 async function quickStart(picksP,picksE){            // (tests / future "rematch"): select instantly and go
@@ -6631,6 +6635,7 @@ const ONLINE_URL=(typeof window!=='undefined'&&window.DODGE_WS)||'wss://dodgebal
 #dgOnline .row{ display:flex; gap:10px; } #dgOnline .row>*{ flex:1; }
 #dgOnline .dgm{ width:100%; font-size:20px; } #dgOnline .dgm.g{ background:#cfc6dc; }
 #dgOnline [hidden]{ display:none !important; }
+#dgSel.online .su{ display:none !important; }
 `; document.head.appendChild(st);
   const d=document.createElement('div'); d.id='dgOnline';
   d.innerHTML='<div class="box"><h2>ONLINE</h2><div class="st" id="dgOnSt"></div><div class="code" id="dgOnCode" hidden></div>'
@@ -6662,9 +6667,8 @@ function openOnline(){
     else if(m.type==='error'){ status(m.message||'Error'); lobby(); const w=ws; ws=null; try{ w.close(); }catch(e){} }
     else if(m.type==='start'){
       S.net=Object.assign(S.net||{ws},{ws,role:m.you,first:m.first,seed:m.seed,suti:false,started:true});
-      busyUI(); codeEl.hidden=true; status('Flipping the coin…');
-      setTimeout(()=>{ const mine=(m.first===m.you); status(mine?'You throw first!':'Your friend throws first.'); bigText(mine?'YOU START!':'THEY START',1700,true);
-        setTimeout(()=>{ status('Connected as '+m.you+'. Next: team select (coming in 4b).'); main.hidden=true; join.hidden=true; },1800); },900);
+      busyUI(); codeEl.hidden=true; status('Starting…'); root.classList.remove('on'); const w=ws; ws=null;
+      netAttach(w); S.online=true; S.boss=false; S.dog=false; S.oppCountry=null; S.netQ=[]; audio(); startPlay();
     }
     else if(m.type==='opponent_left'){ status('Your friend left.'); S.net=null; const w=ws; ws=null; try{ w.close(); }catch(e){} lobby(); }
   }
@@ -6673,6 +6677,37 @@ function openOnline(){
   input.oninput=()=>{ input.value=input.value.toUpperCase().replace(/[^A-Z]/g,''); };
   $o('dgOnBack').onclick=close;
   input.value=''; status('Create a room, or type your friend\'s code.'); lobby(); root.classList.add('on');
+}
+
+/* ====================== ONLINE: network helpers (step 4b) ======================
+   The server only relays: P1 (host) -> to_guest, P2 (guest) -> to_host. data.k says what it is: 'pick' / 'ready'. */
+function netSend(data){ const n=S.net; if(!n||!n.ws||n.ws.readyState!==1) return; try{ n.ws.send(JSON.stringify({type:n.role==='P1'?'to_guest':'to_host',data})); }catch(e){} }
+function netAttach(w){
+  w.onmessage=ev=>{ let m; try{ m=JSON.parse(ev.data); }catch(e){ return; } if(m.type==='from_host'||m.type==='from_guest') netIn(m.data); else if(m.type==='opponent_left') leaveOnline('YOUR FRIEND LEFT'); };
+  w.onclose=()=>{ if(S.online&&S.net&&S.net.ws===w) leaveOnline('CONNECTION LOST'); };
+}
+function netIn(d){
+  if(!d||!S.online) return;
+  if(typeof d.c==='string') S.oppCountry=d.c.slice(0,2).toUpperCase();
+  if(d.k==='pick'||d.k==='ready'){
+    const sel=S.sel; if(!sel||!sel.online){ (S.netQ=S.netQ||[]).push(d); return; }          // the friend was faster than our loading: keep it for later
+    if(sel.ready.E) return;
+    sel.picks.E=(Array.isArray(d.ids)?d.ids:[]).map(id=>sel.roster.E.find(e=>e.id===id)).filter(Boolean).slice(0,TEAM_SIZE);
+    if(d.k==='ready') sel.ready.E=true; else hsfx.pick&&hsfx.pick();
+    renderSel();
+  }
+}
+function dropOnline(){ const n=S.net; S.online=false; S.net=null; S.netQ=[]; if(n&&n.ws){ try{ n.ws.onclose=null; n.ws.onmessage=null; n.ws.close(); }catch(e){} } }
+function leaveOnline(msg){ if(!S.online) return; dropOnline(); hideSel(); hideLoad(); hideAim(); S.sel=null; toMainMenu(); if(msg) bigText(msg,2400,true); }
+function stepSelOnline(dt,sel){      // both players pick for 30 s; when time is up each client completes ITS OWN team and says so; the friend's late "ready" gets 4 s of grace
+  if(sel.t<=0){
+    if(!sel.ready.P){ autofill('P'); sel.ready.P=true; netSend({k:'ready',ids:sel.picks.P.map(e=>e.id),c:detectCountry()}); renderSel(); }
+    if(!sel.ready.E){ sel.grace=(sel.grace||0)+dt; if(sel.grace>4){ autofill('E'); sel.ready.E=true; renderSel(); } }
+  }
+  if(sel.ready.P&&sel.ready.E){ lockIn(); sel.goT=0.5; }
+}
+function onlineCourt(){      // 4b ends here: both players stand on the court with their teams (coin flip + real play come next)
+  resetMatch(); setMode('play'); audio(); S.demo=null; S.thrower=null; S.phase='none'; S.cd=0; hideAim(); bigText('TEAMS READY!',2600,true);
 }
 
 function toMainMenu(){          // back to the title screen with its menu buttons
@@ -6935,7 +6970,7 @@ requestAnimationFrame(frame);
 return {
   async init(){ await boot(); },
   enter(){ active=true; stage.classList.add('on'); S.camPos=null; hideSel(); setMode('ready'); S.boss=false; setDungeon(false); sutiLook(false); layout(); if(S.mode==='ready'){ rollTeam(); resetMatch(); } S.camPos.copy(S.runPos); last=performance.now(); },
-  exit(){ active=false; exitTutorial(true); S.boss=false; setDungeon(false); clearMeteors(); hideAim(); stopConf(); hideSel(); stage.classList.remove('on'); }
+  exit(){ active=false; dropOnline(); exitTutorial(true); S.boss=false; setDungeon(false); clearMeteors(); hideAim(); stopConf(); hideSel(); stage.classList.remove('on'); }
 };
 }
 
