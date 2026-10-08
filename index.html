@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <!doctype html>
 <html lang="en">
 <head>
@@ -4875,6 +4875,7 @@ function buildEnv(n){
   line(W,0.26,0,0);                                                              // centre line
   line(W,0.16,0,ZF+0.08); line(W,0.16,0,ZB-0.08); line(0.16,D,-HW+0.08,CZ); line(0.16,D,HW-0.08,CZ);   // court edge
   const cr=new THREE.Mesh(new THREE.RingBufferGeometry(1.7,1.86,56),new THREE.MeshBasicMaterial({color:LC,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3,side:THREE.DoubleSide})); cr.rotation.x=-Math.PI/2; cr.position.set(0,0.035,0); env.add(cr);
+  const zd=new THREE.Mesh(new THREE.CircleBufferGeometry(1.7,48),new THREE.MeshBasicMaterial({color:0xffd23a,transparent:true,opacity:0.13,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2})); zd.rotation.x=-Math.PI/2; zd.position.set(0,0.03,0); env.add(zd); S.zoneDisc=zd;      // the x2 zone
   // walls (single-sided: the near wall disappears when the camera is behind it)
   const wm=(rx)=>new THREE.MeshLambertMaterial({map:texRepeat(DG?wallTexD:wallTex,rx,1)});
   const bw=new THREE.Mesh(new THREE.PlaneBufferGeometry(W+3,5),wm((W+3)/1.2)); bw.position.set(0,2.5,ZF-0.5); env.add(bw);
@@ -5191,7 +5192,7 @@ const DEFS={
   ninja2: {n:'Ninja',  tex:()=>JPA?NINJA_TEX:solidURL('#2457d6'),buf:()=>JPA?zbuf(NINJA_FBX_Z):stBuf(),H:2.05,h:JPA?0.875:0.98,isBoss:true,shade:!JPA,ninja:true}
 };
 const JPB=typeof BIKER_TEX!=='undefined'&&typeof BIKER_FBX_Z!=='undefined';
-DEFS.biker=Object.assign({},DEFS.ninja,{n:'Biker',ninja:false,H:2.3});
+DEFS.biker=Object.assign({},DEFS.ninja,{n:'Gun Top',ninja:false,H:2.3});
 if(JPB) Object.assign(DEFS.biker,{tex:()=>BIKER_TEX,buf:()=>zbuf(BIKER_FBX_Z),h:1,shade:false,ren:'biker'});      // the real Biker (rigged like the ninjas); the ninja model is only the fallback
 const stBuf=()=>bufCache.st1||(bufCache.st1=b64buf(STUDENT1_FBX_B64));
 const ENEMY_IDS=['tero','shani','micael','erick'];                       // the squad shown on the title screen
@@ -5228,7 +5229,7 @@ const bubbleGeo=new THREE.SphereBufferGeometry(1,20,14);
 const bufCache={}, texCache={}, pend={};
 /* ---------------- the Biker's scarf: a ribbon of verlet points hanging from his neck (gravity, drag, and it streams behind him when he moves) ---------------- */
 const SCARF_N=10, scarves=[];
-const SCARF_COLS=new Array(10).fill(0x489618);      // one solid lime, the green of his suit      // lime like his suit, a dark band and a white tip
+const SCARF_COLS=new Array(10).fill(0x2f7fdc);      // one solid lime, the green of his suit      // lime like his suit, a dark band and a white tip
 function addScarf(c){
   const h=c.h; if(h.scarf||!h.rig) return; const iN=h.rig.idx('Head'); if(iN<0||!h.rig.bones[iN]) return;
   const L=c.H*0.052, hw=c.H*0.042, pts=[], prv=[]; for(let i=0;i<=SCARF_N;i++){ pts.push(new THREE.Vector3()); prv.push(new THREE.Vector3()); }
@@ -5237,7 +5238,7 @@ function addScarf(c){
   for(let i=0;i<SCARF_N;i++){ const a=i*2; idx.push(a,a+1,a+2,a+1,a+3,a+2); }
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setAttribute('color',new THREE.BufferAttribute(col,3)); geo.setIndex(idx);
   const mesh=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.DoubleSide})); mesh.frustumCulled=false; scene.add(mesh);
-  const ring=new THREE.Mesh(new THREE.TorusBufferGeometry(1,0.34,8,20),new THREE.MeshBasicMaterial({color:0x489618})); ring.rotation.x=Math.PI/2; h.g.updateMatrixWorld(true);
+  const ring=new THREE.Mesh(new THREE.TorusBufferGeometry(1,0.34,8,20),new THREE.MeshBasicMaterial({color:0x2f7fdc})); ring.rotation.x=Math.PI/2; h.g.updateMatrixWorld(true);
   const nb=h.rig.bones[iN], np=new THREE.Vector3(); nb.getWorldPosition(np); ring.scale.setScalar(c.H*0.1); ring.position.copy(np); ring.position.y-=c.H*0.075; ring.updateMatrixWorld(true); nb.attach(ring);
   h.scarf={c,mesh,ring,pts,prv,L,hw,iN,init:false}; scarves.push(h.scarf);
 }
@@ -5251,15 +5252,16 @@ function stepScarves(dt){
     const P=sc.pts, Q=sc.prv;
     if(!sc.init){ for(let i=0;i<=SCARF_N;i++){ P[i].set(_sn.x-fx*sc.L*i*0.5,_sn.y-sc.L*i*0.8,_sn.z-fz*sc.L*i*0.5); Q[i].copy(P[i]); } sc.init=true; }
     P[0].copy(_sn); Q[0].copy(_sn);
-    const t=S.t, sp=Math.hypot(c.vx||0,c.vz||0)+(c.dash?6:0);
-    for(let i=1;i<=SCARF_N;i++){ const p=P[i], q=Q[i]; const vx=(p.x-q.x)*0.955, vy=(p.y-q.y)*0.955, vz=(p.z-q.z)*0.955; q.copy(p);
-      const fl=Math.sin(t*7+i*0.9)*0.3*(0.3+Math.min(sp,5)*0.25), push=(2.1+sp*0.6)*i/SCARF_N;
-      p.x+=vx+(-fx*push+_sd.set(fz,0,-fx).x*fl)*dt*dt*26; p.y+=vy-dt*dt*17*(1-0.3*Math.min(1,sp/4))+dt*dt*Math.sin(t*5+i*0.8)*4; p.z+=vz+(-fz*push+_sd.set(fz,0,-fx).z*fl)*dt*dt*26; }
-    for(let it=0;it<4;it++){ for(let i=1;i<=SCARF_N;i++){ const a=P[i-1], b=P[i]; _sd.subVectors(b,a); const d=_sd.length()||1e-4, k=(d-sc.L)/d; if(i===1) b.addScaledVector(_sd,-k); else { a.addScaledVector(_sd,k*0.5); b.addScaledVector(_sd,-k*0.5); } } P[0].copy(_sn); }
-    for(let i=1;i<=SCARF_N;i++) if(P[i].y<0.06) P[i].y=0.06;
+    const t=S.t, ko=!!c.ko, sp=ko?0:Math.hypot(c.vx||0,c.vz||0)+(c.dash?6:0), SUB=2, h2=dt/SUB;      // heavy cloth: it trails behind whatever moves him, hangs when he stops, and lies limp when he is down
+    for(let sb=0;sb<SUB;sb++){ P[0].copy(_sn); for(let i=1;i<=SCARF_N;i++){ const p=P[i], q=Q[i]; const dm=ko?0.86:0.93; let vx=(p.x-q.x)*dm, vy=(p.y-q.y)*dm, vz=(p.z-q.z)*dm; q.copy(p);
+        if(p.y<=0.07){ vx*=0.45; vz*=0.45; }      // on the floor it drags
+        const lean=ko?0:(0.55+Math.min(sp,6)*0.3)*(i/SCARF_N);      // a little away from his back, so it does not sink into it
+        p.x+=vx-fx*lean*h2*h2*30; p.y+=vy-h2*h2*95; p.z+=vz-fz*lean*h2*h2*30; }
+      for(let it=0;it<5;it++){ for(let i=1;i<=SCARF_N;i++){ const a=P[i-1], b=P[i]; _sd.subVectors(b,a); const d=_sd.length()||1e-4, k=(d-sc.L)/d; if(i===1) b.addScaledVector(_sd,-k); else { a.addScaledVector(_sd,k*0.5); b.addScaledVector(_sd,-k*0.5); } } P[0].copy(_sn); }
+      for(let i=1;i<=SCARF_N;i++) if(P[i].y<0.05) P[i].y=0.05; }
     _sr.set(fz,0,-fx);      // his right/left: the ribbon is as wide as that, and it twists a bit along its length
     const pa=sc.mesh.geometry.attributes.position.array;
-    for(let i=0;i<=SCARF_N;i++){ const a=P[Math.max(0,i-1)], b=P[Math.min(SCARF_N,i+1)]; _st.subVectors(b,a).normalize(); const w=sc.hw*(1+0.4*i/SCARF_N), an=0.75+Math.sin(t*3.2+i*0.8)*0.5*(0.4+i/SCARF_N);      // the ribbon twists along its length so it shows its face from any side
+    for(let i=0;i<=SCARF_N;i++){ const a=P[Math.max(0,i-1)], b=P[Math.min(SCARF_N,i+1)]; _st.subVectors(b,a).normalize(); const w=sc.hw*(1+0.4*i/SCARF_N), an=0.9+(ko?0:Math.sin(t*4+i*0.8)*0.18*Math.min(1,sp/3)*(i/SCARF_N));      // the ribbon twists along its length so it shows its face from any side
       _sd.copy(_sr).addScaledVector(_st,-_sr.dot(_st)).normalize().multiplyScalar(Math.cos(an)); _sd.y+=Math.sin(an)*(1-_st.y*_st.y)*0.9; _sd.normalize().multiplyScalar(w);
       pa[(i*2)*3]=P[i].x-_sd.x; pa[(i*2)*3+1]=P[i].y-_sd.y; pa[(i*2)*3+2]=P[i].z-_sd.z; pa[(i*2+1)*3]=P[i].x+_sd.x; pa[(i*2+1)*3+1]=P[i].y+_sd.y; pa[(i*2+1)*3+2]=P[i].z+_sd.z; }
     sc.mesh.geometry.attributes.position.needsUpdate=true;
@@ -5414,7 +5416,7 @@ function cloneInit(c,src,decoy){
   const b=bounds(c), ox=(src.x>0?-1.5:1.5); c.x=clamp(src.x+ox,b.x0,b.x1); c.z=clamp(src.z+rr(-0.4,0.4),b.z0,b.z1); c.yaw=src.yaw; c.dyaw=src.dyaw; pickTarget(c);
   c.h.g.visible=c.h.sh.visible=true; c.h.skin.material.color.setHex(0xffffff); c.ring.material.color.setHex(side==='P'?C_P:C_E); c.ring.visible=true; c.bubble.visible=false; c.bar.style.visibility='hidden';
   sq.push(c); jpPoof(src.x,src.z,0xffffff,0xbfe6ff); jpPoof(c.x,c.z,0xffffff,0xbfe6ff); popup('Clone!',c.x,c.H+1.2,c.z); hsfx.shield&&hsfx.shield();
-  if(c.id==='biker'&&!decoy){ c.name='Biker'; c.nat='US'; }
+  if(c.id==='biker'&&!decoy){ c.name='Gun Top'; c.nat='US'; }
   if(decoy){ S.dup=c; src.hideBar=true; }
 }
 function spawnClone(src,decoy,asId){      // asId: a different character appears instead of a copy of src (the Biker joins you in Japan)
@@ -5430,9 +5432,100 @@ function killExtra(c){      // a clone goes down in one hit; the Biker's decoy b
   c.extra=false; c.decoy=false;
 }
 function purgeExtras(){ [teamP,teamE].forEach(sq=>{ for(let i=sq.length-1;i>=0;i--){ const c=sq[i]; if(c.extra){ c.active=false; c.h.g.visible=c.h.sh.visible=false; c.ring.visible=false; c.bubble.visible=false; c.bar.style.visibility='hidden'; c.extra=false; c.decoy=false; sq.splice(i,1); } } }); S.dup=null; S.pendClone=null; }
+/* ---------------- BONUS STAGE (between the desert and Japan): no enemy team, a fighter jet hovers over their court. 60 seconds to blow it up; if you do, your whole team starts the next level with a shield ---------------- */
+const JETM={span:4.6,rot:[0,0,0]};      // the jet model: its wingspan on the court and how it is turned
+const JET={g:null,mats:[],hp:300,max:300,bar:null,dead:false,sm:0,sk:0,ex:0,flash:0,jx:0,jy:2.0,jz:0,sy:-4.3};      // sy: where it shows on screen = the middle of THEIR half
+function buildJet(){
+  if(JET.g) return;
+  if(typeof JET_FBX_Z==='undefined'||typeof JET_TEX==='undefined'){ buildJetPH(); return; }
+  const g=new THREE.Group(); g.visible=false; scene.add(g); JET.g=g;
+  [-1,1].forEach(sg=>{ const gl=makeGlow('G',2.0); g.add(gl); gl.position.set(sg*JETM.span*0.27,0,-JETM.span*0.42); JET['gl'+sg]=gl; });
+  loadTex(JET_TEX).then(tex=>{
+    const obj=loader.parse(zbuf(JET_FBX_Z).slice(0),''); obj.updateMatrixWorld(true);
+    obj.traverse(n=>{ if(n.isMesh){ n.material=new THREE.MeshBasicMaterial({map:tex,side:THREE.DoubleSide}); n.userData.base=new THREE.Color(0xffffff); n.frustumCulled=false; JET.mats.push(n); } });
+    const bb=new THREE.Box3().setFromObject(obj), c=bb.getCenter(new THREE.Vector3()), sz=bb.getSize(new THREE.Vector3());
+    const wrap=new THREE.Group(); wrap.add(obj); obj.position.sub(c); const holder=new THREE.Group(); holder.add(wrap); holder.scale.setScalar(JETM.span/Math.max(sz.x,sz.z)); holder.rotation.set(JETM.rot[0],JETM.rot[1],JETM.rot[2]); g.add(holder); JET.holder=holder;
+  }).catch(e=>console.error(e));
+}
+function buildJetPH(){      // fallback placeholder when the jet model is not available
+  if(JET.g) return; const g=new THREE.Group(); JET.g=g;
+  const M=(geo,col,x,y,z,sx,sy,sz)=>{ const m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:col})); m.position.set(x,y,z); if(sx) m.scale.set(sx,sy,sz); m.userData.base=new THREE.Color(col); g.add(m); JET.mats.push(m); return m; };
+  const SP=new THREE.SphereBufferGeometry(1,18,14), BX=new THREE.BoxBufferGeometry(1,1,1), CY=new THREE.CylinderBufferGeometry(1,1,1,14), CN=new THREE.ConeBufferGeometry(1,1,16);
+  M(SP,0x74834f,0,0,0,0.95,0.62,2.3);                                  // fuselage
+  const nose=M(CN,0x8d9288,0,-0.02,2.55,0.5,1.5,0.5); nose.rotation.x=Math.PI/2;
+  M(SP,0x8fd8f0,0,0.52,0.95,0.55,0.5,1.0);                              // canopy
+  M(BX,0x5f6c42,0,-0.08,-0.35,6.2,0.16,1.7); [-1,1].forEach(sg=>M(BX,0xe07a2a,sg*3.15,-0.08,-0.35,0.7,0.2,1.72));      // wings with orange tips
+  [-1,1].forEach(sg=>{ const e=M(CY,0x4a4f44,sg*1.75,-0.1,-0.9,0.42,2.1,0.42); e.rotation.x=Math.PI/2; const r=M(CY,0xe07a2a,sg*1.75,-0.1,0.18,0.46,0.22,0.46); r.rotation.x=Math.PI/2;
+    M(BX,0x74834f,sg*0.95,0.65,-2.0,0.12,1.3,1.0);                      // twin tail fins
+    const ms=M(CY,0x9a9f96,sg*2.55,-0.32,0.2,0.14,1.3,0.14); ms.rotation.x=Math.PI/2; const mt=M(CN,0xd33a2a,sg*2.55,-0.32,0.95,0.15,0.35,0.15); mt.rotation.x=Math.PI/2;
+    const gl=makeGlow('G',2.6); g.add(gl); gl.position.set(sg*1.75,-0.1,-2.05); JET['gl'+sg]=gl; });
+  M(BX,0x5f6c42,0,0.25,-2.25,2.6,0.1,0.8);                              // tailplane
+  g.visible=false; scene.add(g);
+}
+function jetBar(){ if(JET.bar) return; const b=document.createElement('div'); b.className='dgb E'; b.style.visibility='hidden'; b.style.setProperty('--w','190px'); b.innerHTML='<span class="nm">FIGHTER JET</span><span class="hb"><u></u></span><b>🛡</b>'; barsEl.appendChild(b); JET.bar=b; }
+function startBonus(){
+  S.bonus=true; S.bonusDone=true; S.bonusT=30; S.bonusEnd=false; S.bonusNext=0; S.stageClear=false; stopConf(); body.classList.remove('over');
+  teamE.forEach(c=>{ c.active=false; c.h.g.visible=c.h.sh.visible=false; c.h.stars.forEach(q=>q.visible=false); c.ring.visible=false; c.bubble.visible=false; c.bar.style.visibility='hidden'; }); teamE=[];
+  S.barOn=true; S.sutiOn=false; buildJet(); jetBar(); Object.assign(JET,{hp:JET.max,dead:false,sm:0,sk:0,ex:0,flash:0,shield:true});
+  if(!JET.bub){ JET.bub=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),new THREE.MeshBasicMaterial({color:0x4fb9ff,transparent:true,opacity:0.25,depthWrite:false})); JET.bub.scale.set(JETM.span*0.62,1.5,JETM.span*0.62); JET.bub.position.y=0.1; JET.g.add(JET.bub); }
+  JET.bub.visible=true; if(JET.bar) JET.bar.classList.add('sh');
+  JET.mats.forEach(m=>{ m.visible=true; m.material.color.copy(m.userData.base); }); JET.g.visible=true; JET.jx=0; JET.jz=JET.sy+JET.jy/TANP; JET.g.position.set(JET.jx,JET.jy,JET.jz); paintJetBar();
+  beginMatch(); bigText('BONUS STAGE: DESTROY THE JET!',2200);
+}
+function paintJetBar(){ if(!JET.bar) return; JET.bar.querySelector('.hb u').style.width=(Math.max(0,JET.hp)/JET.max*100)+'%'; JET.bar.classList.toggle('low',JET.hp/JET.max<=0.3&&JET.hp>0); JET.bar.classList.remove('hit'); void JET.bar.offsetWidth; JET.bar.classList.add('hit'); }
+function endBonusState(){ clearPuffs(); S.bonus=false; JET.dead=false; JET.ex=0; S.bonusNext=0; if(JET.g) JET.g.visible=false; if(JET.bar) JET.bar.style.visibility='hidden'; S.barOn=true; }
+function jetHit(p,apz){      // a ball that touches the jet on screen
+  if(!S.bonus||JET.dead||S.bonusEnd||p.team!=='P'||p.demo) return false;
+  if(Math.abs(p.x-JET.jx)>JETM.span*0.5||Math.abs(apz-JET.sy)>JETM.span*0.27) return false;
+  if(JET.shield){ JET.shield=false; JET.flash=0.22; hsfx.block(); S.shake=Math.max(S.shake,0.25); burst(p.x,1.5,p.z,14,0x7fd6ff); popup('Blocked!',JET.jx,JET.jy+1.6,JET.jz); if(JET.bar) JET.bar.classList.remove('sh'); killBall(p); S.ball=null; endTurn(0.8); return true; }      // the jet starts with a shield: one hit pops it
+  const d=p.dmg; JET.hp=Math.max(0,JET.hp-d); JET.flash=0.22; hsfx.ouch(); S.shake=Math.max(S.shake,p.mult>1?0.5:0.3); burst(p.x,1.6,p.z,p.mult>1?18:12,0xffb02e); burst(p.x,1.4,p.z,6,0xffffff); if(p.mult>1) fireBurst(p.x,1.4,p.z,true);
+  popup('-'+Math.round(d)+(p.mult>1?'!!':'')+(p.zone?' ZONE':''),JET.jx,JET.jy+1.6,JET.jz); paintJetBar(); killBall(p); S.ball=null;
+  if(JET.hp<=0){ JET.dead=true; JET.ex=0; hsfx.ko(); S.phase='done'; S.thrower=null; hideAim(); $('aimhint').classList.remove('on'); } else endTurn(0.8);
+  return true;
+}
+function bonusEnd(win){
+  if(S.bonusEnd) return; S.bonusEnd=true; if(S.ball){ killBall(S.ball); S.ball=null; } S.phase='done'; S.thrower=null; hideAim(); $('aimhint').classList.remove('on');
+  if(win){ if(S.run) S.run.shieldStage=1; S.bonus=false; S.winner='P'; const al=teamP.filter(c=>!c.extra&&!c.ko&&c.active), lk=al[Math.floor(Math.random()*al.length)]; if(lk){ lk.shield=true; paintBar(lk); if(S.run) S.run.shieldId=lk.id; } stageClear(); hsfx.shield&&hsfx.shield(); bigText('JET DESTROYED! 1 SHIELD!',2400); }
+  else { bigText("TIME'S UP!",1800); S.bonusNext=2.4; }
+}
+const smokeTex=canvasTex(64,64,(g)=>{ const gr=g.createRadialGradient(32,32,2,32,32,30); gr.addColorStop(0,'rgba(255,255,255,.95)'); gr.addColorStop(0.5,'rgba(255,255,255,.5)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,64,64); });
+const puffs=[]; for(let i=0;i<70;i++){ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:smokeTex,color:0x2c2a29,transparent:true,depthWrite:false,opacity:0})); sp.visible=false; scene.add(sp); puffs.push({sp,life:0,max:1,vx:0,vy:0,vz:0,s0:1}); }
+function puff(x,y,z,vx,vy,vz,life){ const q=puffs.find(q=>q.life<=0); if(!q) return; q.life=q.max=life; q.vx=vx; q.vy=vy; q.vz=vz; q.s0=rr(0.8,1.3); q.sp.position.set(x,y,z); q.sp.visible=true; q.sp.scale.setScalar(q.s0); q.sp.material.color.setHex(Math.random()<0.5?0x2c2a29:0x3d3a38); }
+function stepPuffs(dt){ puffs.forEach(q=>{ if(q.life<=0) return; q.life-=dt; if(q.life<=0){ q.sp.visible=false; return; } const u=1-q.life/q.max; q.sp.position.x+=q.vx*dt; q.sp.position.y+=q.vy*dt; q.sp.position.z+=q.vz*dt; q.vy*=0.99; q.sp.scale.setScalar(q.s0*(1+u*2.2)); q.sp.material.opacity=0.8*Math.min(1,u*8)*(1-u); }); }
+function clearPuffs(){ puffs.forEach(q=>{ q.life=0; q.sp.visible=false; }); }
+function stepJet(dt){
+  stepPuffs(dt);
+  if(JET.bub){ JET.bub.visible=!!JET.shield&&!JET.dead; if(JET.bub.visible) JET.bub.material.opacity=0.22+0.08*Math.sin(S.t*5); }
+  if(S.zoneDisc){ S.zoneFlash=Math.max(0,(S.zoneFlash||0)-dt*1.6); S.zoneDisc.material.opacity=0.13+0.45*S.zoneFlash; }
+  const g=JET.g; if(!g||(!g.visible&&!(JET.dead&&JET.ex<2.2&&S.bonus))){ if(JET.bar&&JET.bar.style.visibility!=='hidden') JET.bar.style.visibility='hidden'; return; }
+  if(!S.bonus&&!JET.dead&&!JET.ex) { g.visible=false; return; }
+  const t=S.t, f=JET.hp/JET.max, live=!JET.dead, sc=JETM.span/6.4;
+  if(S.bonus&&S.mode==='play'&&S.cd<=0&&live&&!S.bonusEnd){ S.bonusT=Math.max(0,S.bonusT-dt); if(S.bonusT<=0) bonusEnd(false); }
+  if(S.bonus){ const T=Math.ceil(S.bonusT); $('score').textContent='⏱ '+Math.floor(T/60)+':'+String(T%60).padStart(2,'0'); }
+  if(S.bonusNext>0){ S.bonusNext-=dt; if(S.bonusNext<=0){ S.bonusNext=0; enterSelect(1); } }
+  JET.flash=Math.max(0,JET.flash-dt);
+  if(live){      // it hovers: bob, roll, and it gets worse with every hit
+    const fe=f*0.62, wob=1+(1-f)*2.2, y=JET.jy+Math.sin(t*1.8)*0.18-(fe<0.25?0.5*(1-fe/0.25):0)+(fe<0.5?Math.sin(t*23)*0.03*(1-f)*2:0);
+    g.position.set(JET.jx+Math.sin(t*0.9)*0.35+(fe<0.25?Math.sin(t*17)*0.06:0),y,JET.jz); g.rotation.set(0.06+Math.sin(t*1.3)*0.03*wob,0,Math.sin(t*1.1)*0.05*wob+(fe<0.5?Math.sin(t*2.1)*0.08*(1-f):0));
+    JET.mats.forEach(m=>{ m.material.color.copy(m.userData.base).lerp(_jc.setHex(0x1c1b1a),Math.min(0.85,(1-f)*1.25)); if(JET.flash>0) m.material.color.lerp(_jc.setHex(0xff8a70),0.6); });
+    [-1,1].forEach(sg=>{ const gl=JET['gl'+sg], k=0.8+Math.sin(t*30+sg)*0.18+(fe<0.25?(Math.random()-0.5)*0.5:0); gl.scale.setScalar(2.0*k); });
+    JET.sm-=dt; if(fe<0.5&&JET.sm<=0){ JET.sm=fe<0.25?0.06:0.12; const p=g.position;
+      spawnFire(p.x-JETM.span*0.3,p.y+0.2,p.z-0.4*sc,rr(-0.3,0.3),rr(0.8,1.8),rr(-1.5,-0.5),rr(0.3,0.6),rr(0.6,1.0)); if(Math.random()<0.5) burst(p.x-JETM.span*0.3,p.y+0.3,p.z-0.4*sc,1,0xffb02e);
+      if(fe<0.25){ spawnFire(p.x+rr(-1.2,1.2)*sc,p.y+0.5,p.z+rr(-1.2,0.4)*sc,rr(-0.5,0.5),rr(1,2.4),rr(-0.5,0.5),rr(0.4,0.8),rr(0.8,1.3)); spawnFire(p.x+JETM.span*0.28,p.y+0.1,p.z-0.6*sc,0,rr(1,2),-1,rr(0.3,0.6),rr(0.7,1.1)); if(Math.random()<0.4) burst(p.x+rr(-1.6,1.6)*sc,p.y,p.z,3,0xffd23a); } }
+    if(fe<=0.2){ JET.sk+=dt*44; let n=Math.floor(JET.sk); JET.sk-=n; const p=g.position;      // below 20%: thick black smoke pours out of it
+      while(n-->0){ const sg=Math.random()<0.5?-1:1; puff(p.x+sg*JETM.span*0.27+rr(-0.15,0.15),p.y+rr(-0.1,0.3),p.z-JETM.span*0.4+rr(-0.2,0.2),rr(-0.3,0.3),rr(0.6,1.2),rr(-1.7,-0.6),rr(1.0,1.6)); if(Math.random()<0.55) puff(p.x+rr(-0.8,0.8)*sc,p.y+0.5,p.z+rr(-1.2,0.4)*sc,rr(-0.4,0.4),rr(0.7,1.3),rr(-1.2,-0.3),rr(0.9,1.5)); } }
+  } else if(JET.ex<2.2){      // the explosion: a chain of blasts, then it is gone
+    const p=g.position, e0=JET.ex; JET.ex+=dt;
+    if(e0===0||Math.floor(JET.ex*9)!==Math.floor(e0*9)&&JET.ex<0.9){ const bx=p.x+rr(-1.9,1.9)*sc, by=p.y+rr(-0.4,0.8), bz=p.z+rr(-1.5,1.5)*sc; fireBurst(bx,by,bz); burst(bx,by,bz,10,0xffa21a); burst(bx,by,bz,6,0x2a2a2a); S.shake=Math.max(S.shake,0.6); if(Math.random()<0.5) hsfx.meteor&&hsfx.meteor(); }
+    if(e0<0.45&&JET.ex>=0.45){ for(let q=0;q<16;q++) puff(p.x+rr(-1.5,1.5)*sc,p.y+rr(-0.3,0.6),p.z+rr(-1.5,1.5)*sc,rr(-1.2,1.2),rr(0.8,2),rr(-1.2,1.2),rr(1.4,2.2)); stoneBurst(p.x,p.z,false); fireBurst(p.x,p.y,p.z); fireBurst(p.x,p.y+0.5,p.z); burst(p.x,p.y,p.z,30,0xffa21a); burst(p.x,p.y,p.z,20,0xffffff); burst(p.x,p.y,p.z,18,0x2a2a2a); hsfx.meteor&&hsfx.meteor(); S.shake=0.9; g.visible=false; popup('BOOM!',p.x,p.y+1.4,p.z); }
+    if(e0<1.5&&JET.ex>=1.5){ bonusEnd(true); }
+  }
+  if(JET.bar){ if(live&&S.mode==='play'&&S.bonus){ const r=renderer.domElement.getBoundingClientRect(); _v.set(JET.jx,JET.jy+1.5,JET.jz).project(camera); JET.bar.style.visibility='visible'; JET.bar.style.transform='translate('+(((_v.x*0.5+0.5)*r.width+r.left)|0)+'px,'+(((-_v.y*0.5+0.5)*r.height+r.top)|0)+'px) translate(-50%,-100%)'; } else JET.bar.style.visibility='hidden'; }
+}
+const _jc=new THREE.Color();
 function startTurn(again){
   if(!again&&S.boss&&S.stage===1) jpUnswap();
-  if(!again){ S.turn++; S.side=S.turn%2===1?'P':'E';
+  if(!again){ S.turn++; S.side=(S.bonus||S.turn%2===1)?'P':'E';
     if(!living(squad(S.side)).length){ S.phase='resolve'; S.phaseT=0; S.resolveDelay=1.0; S.twice=false; S.thrower=null; S.ball=null; hideAim(); $('score').textContent='Turn '+S.turn; return; } }       // everybody on this side is down (a revive is on its way): the turn is skipped
   S.phase='hold'; S.phaseT=0; S.lastTick=0; S.hitThisTurn=false; hideAim();
   const side=S.side, c=(again&&S.thrower&&!S.thrower.ko)?S.thrower:nextThrower(side); S.thrower=c; c.thr=-1; c.aimV=0.25;
@@ -5448,8 +5541,8 @@ function startTurn(again){
     if(c.id==='wizard'&&S.booster&&S.booster.type==='shield') removeBooster(true);      // the Boss never benefits from a booster: none on his turn
     if(S.booster&&S.turn-S.booster.born>=BOOST_LIFE) removeBooster(true);
     if(!jpE&&S.booster&&S.booster.court===side&&S.booster.type!=='heart'){ const bb=S.booster; bb.court=other(side); const r=bounds({team:bb.court}); bb.x=rr(r.x0,r.x1); bb.z=rr(r.z0,r.z1); bb.appear=0; boostPick(bb); }       // it never sits on the court of the team that is about to shoot
-    if(S.boss&&side==='P'&&S.turn>10&&S.turn%10===1&&Math.random()<0.6){ removeBooster(false); spawnBooster('E','heart'); }      // BOSS MODE: every 10 turns, 60%: a heart (only you can take it)
-    if(!noBoost&&!jpE&&!S.booster&&S.turn>=2&&Math.random()<0.55) spawnBooster(other(side),c.id==='wizard'?'x2':undefined);
+    if(!S.bonus&&S.boss&&side==='P'&&S.turn>10&&S.turn%10===1&&Math.random()<0.6){ removeBooster(false); spawnBooster('E','heart'); }      // BOSS MODE: every 10 turns, 60%: a heart (only you can take it)
+    if(!S.bonus&&!noBoost&&!jpE&&!S.booster&&S.turn>=2&&Math.random()<0.55) spawnBooster(other(side),c.id==='wizard'?'x2':undefined);
     if(S.boss&&S.stage===2&&side==='E'&&c.id==='wizard'){ if(Math.random()<0.5) wizardCast(); if(Math.random()<0.2) regenPillar(); }          // his own turn: 50% summon/revive a ghost, 20% a fallen pillar comes back
     if(S.boss&&S.stage===1) japanTurn(side);
   }
@@ -5510,6 +5603,7 @@ function launch(c,dx,dz,power){
   const l=Math.hypot(dx,dz)||1; dx/=l; dz/=l; const o=handPos(c,dx,dz), B=S.ball, E=ballEnd(o.x,o.z,dx,dz,rangeOf(power));
   Object.assign(B,{state:'fly',y0:o.y,ox:o.x,oz:o.z,dx,dz,L:E.L,edge:E.edge,s:0,t:0,x:o.x,y:o.y,z:o.z,landT:0,bounces:0,kx:0,kz:0,sq:0});
   B.mesh.position.set(o.x,o.y,o.z);
+  if(!S.tut&&B.mult<=1&&Math.hypot(c.x,c.z)<1.86){ B.dmg*=2; B.zone=true; S.zoneFlash=1; popup('ZONE x2!',c.x,c.H+1.3,c.z); hsfx.shield&&hsfx.shield(); }      // thrown from inside the center circle: double damage (a super ball is already x2)
   c.thr=0; c.faceT=0.5; c.faceYaw=Math.atan2(dx,dz); S.phase='fly'; S.phaseT=0; hsfx.throw(); $('aimhint').classList.remove('on');
   if(S.boss&&c.id==='boss'&&c.team==='E'&&!S.demo&&Math.random()<0.3) spawnMeteors();      // 30%: the Boss also calls down 2 meteors on your court
 }
@@ -5943,6 +6037,7 @@ function stepBall(dt){
       if(S.boss&&S.stage===1&&!p.demo&&p.team==='P'){ for(const n of teamE){ if(!n.isNinja||n.ko||!n.active||n.tpB===p) continue; const ex=n.x-p.x, ez=n.z-apz; if(Math.hypot(ex,ez)<CH_R+1.6&&ex*p.dx+ez*p.dz>0){ n.tpB=p; if(Math.random()<0.05) ninjaTeleport(n); } } }          // about to be hit: 5% a ninja blinks away
       if(S.boss&&S.stage===3&&!p.demo&&p.team==='P'){ for(const n of teamE){ if(!/^frog/.test(n.id)||n.ko||!n.active||n.jmp||n.tpB===p) continue; const ex=n.x-p.x, ez=n.z-apz; if(Math.hypot(ex,ez)<CH_R+1.8&&ex*p.dx+ez*p.dz>0){ n.tpB=p; if(Math.random()<1/6) frogJump(n); } } }          // about to be hit: 1 in 6 a frog hops over the ball
       if(!p.demo&&(!S.tut||S.tut.dashDemo)&&S.mode==='play'){ for(const c of (p.reflected?squad('P').concat(squad('E')):squad(other(p.team)).concat(p.team==='P'?teamP.filter(q=>q.sw):[]))){ if(!(c.dashP>0)||c.ko||!c.active||c.dash||c.jmp||c.stun>0||c.dB===p) continue; const ex=c.x-p.x, ez=c.z-apz; if(Math.hypot(ex,ez)<CH_R*(c.big||1)+1.9&&ex*p.dx+ez*p.dz>0){ c.dB=p; if(Math.random()<c.dashP) startDash(c,p); } } }          // about to be hit: a 2% chance to dash out of the way
+      if(S.bonus&&jetHit(p,apz)) return;
       let hit=null;
       for(const c of (p.reflected?squad('P').concat(squad('E')):squad(other(p.team)).concat(p.team==='P'?teamP.filter(q=>q.sw):[]))){ if(c.ko||!c.active||c.jmp||c.dash) continue; if(Math.hypot(p.x-c.x,apz-c.z)<CH_R*(c.big||1)){ hit=c; break; } }
       if(hit&&p.demo){ hit.stun=1.1; hit.flash=0.25; hsfx.ouch(); burst(p.x,1.4,p.z,12,0x35c14a); popup('Nice!',hit.x,hit.H+0.7,hit.z); killBall(p); S.ball=null; endTurn(0); return; }
@@ -6012,7 +6107,7 @@ function onUp(e){
   const ok=A.valid&&A.power>0.04&&canAim(); const dx=A.dx, dz=A.dz, pw=A.power; hideAim();
   if(ok) launch(S.thrower,dx,dz,pw);
 }
-window.addEventListener('pointerdown',e=>{ if(!active||e.button>0||e.target.closest('#mute,#home,#dgSel,#dgMenuBtns,#dgTut')) return; e.preventDefault(); onDown(e); },{passive:false});
+window.addEventListener('pointerdown',e=>{ if(!active||e.button>0||e.target.closest('#mute,#home,#dgSel,#dgMenuBtns,#dgTut,#dgOnline')) return; e.preventDefault(); onDown(e); },{passive:false});
 window.addEventListener('pointermove',e=>{ if(active) onMove(e); });
 window.addEventListener('pointerup',e=>{ if(active) onUp(e); });
 window.addEventListener('pointercancel',()=>{ if(active) hideAim(); });
@@ -6053,8 +6148,8 @@ body.tut #dgTut{ display:block; } #dgTurn, body.tut #dgTurn{ display:none !impor
 @keyframes dgBigA{ 0%{ transform:translate(-50%,-50%) scale(.3); opacity:0; } 14%{ transform:translate(-50%,-50%) scale(1.15); opacity:1; } 26%{ transform:translate(-50%,-50%) scale(1); } 80%{ opacity:1; } 100%{ opacity:0; } }
 `; document.head.appendChild(st);
   const bt=document.querySelector('#start .bottom'); if(bt&&!document.getElementById('dgMenuBtns')){ const m=document.createElement('div'); m.id='dgMenuBtns';
-    m.innerHTML='<button type="button" class="dgm t" data-a="tut">TUTORIAL</button><button type="button" class="dgm" data-a="game">GAME MODE</button><button type="button" class="dgm" data-a="boss">STORY MODE</button><button type="button" class="dgm" data-a="online" disabled>ONLINE MODE <i>SOON</i></button><button type="button" class="dgm" data-a="coop" disabled>CO-OP MODE <i>SOON</i></button><button type="button" class="dgm" data-a="creator" disabled>CHARACTER CREATOR <i>SOON</i></button>'; bt.insertBefore(m,bt.firstChild);
-    m.addEventListener('click',e=>{ const b=e.target.closest('.dgm'); if(!b||b.disabled) return; e.stopPropagation(); if(b.dataset.a==='tut') startTutorial(); else if(b.dataset.a==='game'||b.dataset.a==='dog'||b.dataset.a==='boss'){ S.dog=(b.dataset.a==='dog'); S.boss=(b.dataset.a==='boss'); audio(); startPlay(); } }); }
+    m.innerHTML='<button type="button" class="dgm t" data-a="tut">TUTORIAL</button><button type="button" class="dgm" data-a="game">GAME MODE</button><button type="button" class="dgm" data-a="boss">ARCADE MODE</button><button type="button" class="dgm" data-a="online">ONLINE MODE</button><button type="button" class="dgm" data-a="coop" disabled>CO-OP MODE <i>SOON</i></button><button type="button" class="dgm" data-a="creator" disabled>CHARACTER CREATOR <i>SOON</i></button>'; bt.insertBefore(m,bt.firstChild);
+    m.addEventListener('click',e=>{ const b=e.target.closest('.dgm'); if(!b||b.disabled) return; e.stopPropagation(); if(b.dataset.a==='tut') startTutorial(); else if(b.dataset.a==='online'){ audio(); openOnline(); } else if(b.dataset.a==='game'||b.dataset.a==='dog'||b.dataset.a==='boss'){ S.dog=(b.dataset.a==='dog'); S.boss=(b.dataset.a==='boss'); audio(); startPlay(); } }); }
   if(!document.getElementById('dgTitleBg')){ const hero=document.querySelector('.card.dodge .hero'), bg=document.createElement('div'); bg.id='dgTitleBg'; if(hero){ const im=document.createElement('img'); im.alt=''; im.src=hero.src; bg.appendChild(im); } document.body.appendChild(bg); }
   if(!document.getElementById('dgTut')){ const t=document.createElement('div'); t.id='dgTut'; t.innerHTML='<div class="pl"><span>TUTORIAL</span><span class="d"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i></span></div><button type="button" class="x" aria-label="Close tutorial">✕</button>'; document.body.appendChild(t);
     t.querySelector('.x').addEventListener('click',e=>{ e.stopPropagation(); exitTutorial(); }); t.querySelector('.x').addEventListener('pointerdown',e=>e.stopPropagation()); }
@@ -6303,7 +6398,7 @@ function hideSel(){ const el=document.getElementById('dgSel'); if(el) el.classLi
 async function enterSelect(st){
   st=S.boss?((st>=1&&S.run)?st:0):((st>=2&&S.run)?st:1); if(S.selBusy) return; S.selBusy=true;
   try{
-    stopConf(); hideAim(); setMode('select'); $('aimhint').classList.remove('on'); hideSel(); showLoad();
+    endBonusState(); stopConf(); hideAim(); setMode('select'); $('aimhint').classList.remove('on'); hideSel(); showLoad();
     if(S.boss?st===0:st===1){ S.stage=S.boss?0:1; setEnvKind(S.boss?'desert':'gym'); sutiLook(!!S.boss); }
     for(const id of POOL_IDS.concat(S.boss?['biker','samurai','ninja','ninja2','wizard','ghost','ghost2','ghost3','boss','frog','frog2']:[])){ if(!inst.P[id]){ try{ await ensureInst('P',id); }catch(e){ console.error(e); } await yieldUI(); } }       // (they stream in while the title is up; this is a safety net)
     const have=POOL_IDS.filter(id=>inst.P[id]), seed=(Math.random()*4294967296)>>>0;
@@ -6318,7 +6413,7 @@ async function enterSelect(st){
 function makeBossRoster(seed,stage){
   if(stage===0){      // STORY MODE, stage 1 (the desert): three random characters and the Biker (2 full bars, as fast as the ninjas, 3x the dash chance, 2x the super-ball chance)
     const R=makeRoster(seed^0x85ebca6b,POOL_IDS.filter(id=>inst.P[id]||inst.E[id])).slice(0,3);
-    return R.concat([{id:'biker',name:'Biker',nat:'US',spd:3,str:3,hp:3,dsh:3,tot:2,spdK:1.55,dashP:0.12,pwr:2}]); }      // BOSS MODE, stage 1: the Wizard and his three ghosts; stage 2: the Pig Boss and two Froggers (the Froggers walk slower than everybody, the Boss at half their speed)
+    return R.concat([{id:'biker',name:'Gun Top',nat:'US',spd:3,str:3,hp:3,dsh:3,tot:2,spdK:1.55,dashP:0.12,pwr:2}]); }      // BOSS MODE, stage 1: the Wizard and his three ghosts; stage 2: the Pig Boss and two Froggers (the Froggers walk slower than everybody, the Boss at half their speed)
   if((stage||1)===3) return [{id:'boss',name:"Cap'n Croak",nat:'XP',spd:1,str:1,hp:1,tot:3,spdK:0.22,dmg:50},{id:'frog',name:'Ribbit',nat:'XP',spd:1,str:4,hp:5,tot:1.5,spdK:0.6},{id:'frog2',name:'Hoppy',nat:'XP',spd:1,str:4,hp:5,tot:1.5,spdK:0.6}];
   if((stage||1)===2) return [{id:'wizard',name:'Morgrath',nat:'CS',spd:1,str:1,hp:1,tot:3,spdK:1.4,dmg:45},
           {id:'ghost',name:'Boo',nat:'CS',spd:1,str:1,hp:1,tot:0.45,spdK:1,mhp:1,dmg:22},{id:'ghost2',name:'Wisp',nat:'CS',spd:1,str:1,hp:1,tot:0.45,spdK:1,mhp:1,dmg:22},{id:'ghost3',name:'Spook',nat:'CS',spd:1,str:1,hp:1,tot:0.45,spdK:1,mhp:1,dmg:22}];
@@ -6384,7 +6479,7 @@ async function startMatch(){
     const st=(sel.stage!=null)?sel.stage:1, first=sel.boss?st===0:st===1; if(sel.boss&&st===2){ const g4=await ensureInst('E','ghost4'); applyEntry(g4,SPARE_ENTRY); E.push(g4); }            // the wizard's fourth ghost waits off court until he summons it
     lockIn(); teamP=P; teamE=E; if(first) S.sutiPref=sel.sutiOn; S.sutiOn=sel.boss?(st===3?!!S.sutiPref:false):sel.sutiOn; S.boss=!!sel.boss; S.stage=st; setEnvKind(S.boss?(st===3?'alley':st===2?'dungeon':st===1?'japan':'desert'):'gym'); sutiLook(S.boss);
     S.round=sel.boss?0:st; if(!sel.boss&&st===1) S.run={rosterP:sel.roster.P,dead:new Set()};
-    if(S.boss&&st===0){ S.run={rosterP:sel.roster.P,dead:new Set()}; ['samurai','ninja','ninja2'].forEach(id=>{ ensureInst('E',id).catch(()=>{}); }); ensureInst('E','biker','biker#2').catch(()=>{}); }
+    if(S.boss&&st===0){ S.run={rosterP:sel.roster.P,dead:new Set()}; S.bonusDone=false; endBonusState(); ['samurai','ninja','ninja2'].forEach(id=>{ ensureInst('E',id).catch(()=>{}); }); ensureInst('E','biker','biker#2').catch(()=>{}); }
     if(S.boss&&st===1) ['wizard','ghost','ghost2','ghost3','ghost4'].forEach(id=>{ ensureInst('E',id).catch(()=>{}); });
     if(S.boss&&st===2) ['boss','frog','frog2'].forEach(id=>{ ensureInst('E',id).catch(()=>{}); });
     if(S.boss&&st>=1) bigText('STAGE '+(st+1)+'!',1200);      // the next stage loads in the background
@@ -6425,7 +6520,7 @@ function resetMatch(){
 }
 function paintBarQuiet(c){ c.bar.querySelector('.hb u').style.width=(c.hp/c.maxHp*100)+'%'; c.bar.classList.remove('sh','low'); c.bar.classList.toggle('P',c.team==='P'); c.bar.classList.toggle('E',c.team==='E'); }
 function startPlay(){ enterSelect(); }
-function beginMatch(){ resetMatch(); setMode('play'); audio(); S.demo=null; S.thrower=null; if(suti){ suti.wait=0; sutiPick(suti); } hideAim(); S.cd=3; S.cdN=4; }          // 3, 2, 1, GO! and then the first turn
+function beginMatch(){ resetMatch(); if(S.boss&&S.run&&S.run.shieldStage===S.stage&&!S.bonus&&S.mode!=='ready') { const ex=teamP.filter(c=>!c.extra), c=ex.find(x=>x.id===S.run.shieldId)||ex[0]; if(c){ c.shield=true; paintBarQuiet(c); c.bar.classList.add('sh'); } } setMode('play'); audio(); S.demo=null; S.thrower=null; if(suti){ suti.wait=0; sutiPick(suti); } hideAim(); S.cd=3; S.cdN=4; }          // 3, 2, 1, GO! and then the first turn
 function stepCd(dt){ S.cd-=dt; if(S.cd>0){ const n=Math.ceil(S.cd); if(n!==S.cdN){ S.cdN=n; bigText(String(n),900,true); hsfx.turn(); } } else { S.cd=0; bigText('GO!',900,true); hsfx.go(); if(S.pendClone){ const pc=S.pendClone; S.pendClone=null; if(!pc.ko&&teamP.includes(pc)) spawnClone(pc,false,'biker'); } startTurn(); } }
 /* ---- opening demo: a friend of yours winds up and throws at one of them, so the player sees how it works. Tap anywhere to skip ---- */
 function startDemo(){
@@ -6478,7 +6573,7 @@ async function advanceStage(){
 }
 /* ---- secret developer mode (story mode, during a match): N = next level, B = previous level ---- */
 async function devJump(to){
-  if(!S.boss||S.tut||S.advancing||S.victory||S.mode==='select'||S.mode==='loading'||window.__paused) return; if(to<0) return;
+  if(!S.boss||S.tut||S.advancing||S.victory||S.mode==='select'||S.mode==='loading'||window.__paused) return; if(to<0) return; endBonusState();
   if(to>3){      // past the last level: straight to "You saved the world!"
     if(S.ball){ killBall(S.ball); S.ball=null; } jpUnswap(); S.over=false; S.phase='done'; removeBooster(false); clearMeteors(); hideAim(); S.thrower=null; $('aimhint').classList.remove('on'); body.classList.remove('over'); S.stageClear=false;
     S.mode='win'; setMode('win'); hsfx.win(); startConf(); S.victory=true; S.victoryReady=false; setTimeout(showSaved,400); return; }
@@ -6492,7 +6587,7 @@ async function devJump(to){
     teamE=E; setBanner(teamFlag((S.country&&S.country.P)||'SI',teamP.map(c=>c.nat)),teamFlag('SI',E.map(c=>c.nat))); S.stage=to; S.sutiOn=(to===3)?!!S.sutiPref:false; setEnvKind(to===3?'alley':to===2?'dungeon':to===1?'japan':'desert'); stopConf(); beginMatch(); bigText('STAGE '+(to+1)+'!',1400);
   } catch(err){ console.error(err); } finally { S.advancing=false; }
 }
-window.addEventListener('keydown',e=>{ if(!active||e.repeat||e.ctrlKey||e.metaKey||e.altKey) return; if(e.code==='KeyN') devJump(S.stage+1); else if(e.code==='KeyB') devJump(S.stage-1); });
+window.addEventListener('keydown',e=>{ if(!active||e.repeat||e.ctrlKey||e.metaKey||e.altKey) return; if(e.code==='KeyN'){ if(S.boss&&S.stage===0&&!S.bonus&&!S.tut&&!S.advancing&&!S.victory&&S.mode==='play') startBonus(); else devJump(S.stage+1); } else if(e.code==='KeyB'){ if(S.bonus) devJump(0); else devJump(S.stage-1); } });
 function retryStage(){ body.classList.remove('over'); stopConf(); teamP.concat(teamE).forEach(c=>{ c.rvP=false; }); beginMatch(); }
 function finish(){
   jpUnswap();
@@ -6520,10 +6615,70 @@ function showSaved(){
     el.addEventListener('pointerdown',go); el.addEventListener('click',go); document.body.appendChild(el); }
   el.style.display='flex'; void el.offsetWidth; el.style.opacity='1'; setTimeout(()=>{ S.victoryReady=true; },900);
 }
+
+/* ====================== ONLINE LOBBY (step 4a) ======================
+   Two players, one room code, the SERVER flips the coin. P1 = host (runs the real game), P2 = guest.
+   Messages (JSON over WebSocket): create / join / start / error / opponent_left, later to_host / to_guest. */
+const ONLINE_URL=(typeof window!=='undefined'&&window.DODGE_WS)||'wss://dodgeball.tchitchikof.com';
+(function(){ if(document.getElementById('dgOnlineCss')) return; const st=document.createElement('style'); st.id='dgOnlineCss'; st.textContent=`
+#dgOnline{ display:none; position:fixed; inset:0; z-index:12; background:rgba(59,43,79,.78); align-items:center; justify-content:center; padding:18px; }
+#dgOnline.on{ display:flex; } body:not([data-game="dodge"]) #dgOnline{ display:none !important; }
+#dgOnline .box{ width:min(92vw,360px); background:var(--cream); border-radius:26px; padding:20px 18px 22px; box-shadow:0 0 0 4px var(--plum),0 9px 0 4px var(--plum); display:flex; flex-direction:column; gap:12px; align-items:stretch; text-align:center; color:var(--plum); font-weight:700; }
+#dgOnline h2{ margin:0; font-size:28px; letter-spacing:.04em; }
+#dgOnline .st{ min-height:2.6em; font-size:16px; line-height:1.3; display:flex; align-items:center; justify-content:center; }
+#dgOnline .code{ font-size:54px; letter-spacing:.18em; padding-left:.18em; font-weight:800; color:var(--coral); -webkit-text-stroke:2px var(--plum); paint-order:stroke fill; }
+#dgOnline input{ font:inherit; font-weight:800; font-size:34px; letter-spacing:.3em; text-align:center; text-transform:uppercase; border:0; border-radius:16px; padding:8px 6px; background:#fff; color:var(--plum); box-shadow:0 0 0 3px var(--plum) inset; width:100%; box-sizing:border-box; }
+#dgOnline .row{ display:flex; gap:10px; } #dgOnline .row>*{ flex:1; }
+#dgOnline .dgm{ width:100%; font-size:20px; } #dgOnline .dgm.g{ background:#cfc6dc; }
+#dgOnline [hidden]{ display:none !important; }
+`; document.head.appendChild(st);
+  const d=document.createElement('div'); d.id='dgOnline';
+  d.innerHTML='<div class="box"><h2>ONLINE</h2><div class="st" id="dgOnSt"></div><div class="code" id="dgOnCode" hidden></div>'
+   +'<div id="dgOnMain"><button type="button" class="dgm t" id="dgOnCreate">CREATE ROOM</button></div>'
+   +'<div id="dgOnJoin" class="row"><input id="dgOnIn" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false"><button type="button" class="dgm" id="dgOnGo" style="flex:0 0 auto;width:auto;padding-left:18px;padding-right:18px">JOIN</button></div>'
+   +'<button type="button" class="dgm g" id="dgOnBack">BACK</button></div>';
+  document.body.appendChild(d); })();
+
+function openOnline(){
+  const root=document.getElementById('dgOnline'), $o=id=>document.getElementById(id);
+  const st=$o('dgOnSt'), codeEl=$o('dgOnCode'), main=$o('dgOnMain'), join=$o('dgOnJoin'), input=$o('dgOnIn');
+  let ws=null;
+  const status=t=>{ st.textContent=t; };
+  const lobby=()=>{ codeEl.hidden=true; main.hidden=false; join.hidden=false; };
+  const close=()=>{ try{ if(ws) ws.close(); }catch(e){} ws=null; S.net=null; root.classList.remove('on'); };
+  const busyUI=()=>{ main.hidden=true; join.hidden=true; };
+  function connect(first){
+    return new Promise((res,rej)=>{
+      let done=false; const w=new WebSocket(ONLINE_URL); ws=w;
+      const to=setTimeout(()=>{ if(!done){ done=true; try{ w.close(); }catch(e){} rej(new Error('timeout')); } },8000);
+      w.onopen=()=>{ if(done) return; done=true; clearTimeout(to); res(w); };
+      w.onerror=()=>{ if(!done){ done=true; clearTimeout(to); rej(new Error('error')); } };
+      w.onmessage=ev=>{ let m; try{ m=JSON.parse(ev.data); }catch(e){ return; } onMsg(m); };
+      w.onclose=()=>{ if(ws===w&&root.classList.contains('on')&&!(S.net&&S.net.started)){ status('Connection closed.'); busyUI(); main.hidden=false; join.hidden=false; codeEl.hidden=true; } };
+    });
+  }
+  function onMsg(m){
+    if(m.type==='created'){ codeEl.textContent=m.code; codeEl.hidden=false; status('Share this code. Waiting for your friend…'); S.net={ws,code:m.code,role:'P1',started:false}; }
+    else if(m.type==='error'){ status(m.message||'Error'); lobby(); const w=ws; ws=null; try{ w.close(); }catch(e){} }
+    else if(m.type==='start'){
+      S.net=Object.assign(S.net||{ws},{ws,role:m.you,first:m.first,seed:m.seed,suti:false,started:true});
+      busyUI(); codeEl.hidden=true; status('Flipping the coin…');
+      setTimeout(()=>{ const mine=(m.first===m.you); status(mine?'You throw first!':'Your friend throws first.'); bigText(mine?'YOU START!':'THEY START',1700,true);
+        setTimeout(()=>{ status('Connected as '+m.you+'. Next: team select (coming in 4b).'); main.hidden=true; join.hidden=true; },1800); },900);
+    }
+    else if(m.type==='opponent_left'){ status('Your friend left.'); S.net=null; const w=ws; ws=null; try{ w.close(); }catch(e){} lobby(); }
+  }
+  $o('dgOnCreate').onclick=async()=>{ busyUI(); status('Connecting…'); try{ const w=await connect(); w.send(JSON.stringify({type:'create'})); }catch(e){ status('Could not reach the server.'); lobby(); } };
+  $o('dgOnGo').onclick=async()=>{ const code=input.value.trim().toUpperCase(); if(code.length!==4){ status('Type the 4-letter code.'); return; } busyUI(); status('Connecting…'); try{ const w=await connect(); S.net={ws:w,role:'P2',started:false}; w.send(JSON.stringify({type:'join',code})); }catch(e){ status('Could not reach the server.'); lobby(); } };
+  input.oninput=()=>{ input.value=input.value.toUpperCase().replace(/[^A-Z]/g,''); };
+  $o('dgOnBack').onclick=close;
+  input.value=''; status('Create a room, or type your friend\'s code.'); lobby(); root.classList.add('on');
+}
+
 function toMainMenu(){          // back to the title screen with its menu buttons
   const el=document.getElementById('dgSaved'); if(el){ el.style.opacity='0'; el.style.display='none'; }
   S.victory=false; S.victoryReady=false; S.stageClear=false; stopConf(); clearFire(); clearMeteors(); hideAim(); removeBooster(false);
-  if(S.ball){ killBall(S.ball); S.ball=null; } S.boss=false; S.run=null; setDungeon(false); sutiLook(false); setMode('ready'); S.phase='none'; S.thrower=null; rollTeam(); resetMatch(); layout();
+  if(S.ball){ killBall(S.ball); S.ball=null; } endBonusState(); S.boss=false; S.run=null; setDungeon(false); sutiLook(false); setMode('ready'); S.phase='none'; S.thrower=null; rollTeam(); resetMatch(); layout();
 }
 
 /* ---------------- placement of the whole cast ---------------- */
@@ -6735,9 +6890,9 @@ function update(dt){
     stepSelect(dt);
   } else if(m==='win'||m==='lose'){
     S.overT+=dt; stepChars(dt); stepBar(dt); stepSuti(dt); stepBooster(dt);
-    if(S.stageClear&&S.overT>2.8){ S.stageClear=false; enterSelect(S.boss?S.stage+1:2); }
+    if(S.stageClear&&S.overT>2.8){ S.stageClear=false; if(S.boss&&S.stage===0&&!S.bonusDone) startBonus(); else enterSelect(S.boss?S.stage+1:2); }
   }
-  placeAll(dt); stepScarves(dt); stepBlocks(dt); stepRocks(dt); stepHelmFx(dt); stepDashFx(dt); stepPillars(dt); stepRevFx(dt); animEnv(); placeTutHeart(dt); placeSuti(); placeBar(); placeSuper(dt); updateBits(dt); updateFire(dt); updateConf(dt);
+  placeAll(dt); stepScarves(dt); stepJet(dt); stepBlocks(dt); stepRocks(dt); stepHelmFx(dt); stepDashFx(dt); stepPillars(dt); stepRevFx(dt); animEnv(); placeTutHeart(dt); placeSuti(); placeBar(); placeSuper(dt); updateBits(dt); updateFire(dt); updateConf(dt);
   S.camPos.lerp(S.runPos,1-Math.exp(-dt*6)); S.camTgt.lerp(S.runTgt,1-Math.exp(-dt*6));
   S.shake=Math.max(0,S.shake-dt); _cp.copy(S.camPos);
   if(S.shake>0){ _cp.x+=(Math.random()-0.5)*S.shake*0.9; _cp.z+=(Math.random()-0.5)*S.shake*0.9; }
@@ -6771,7 +6926,7 @@ async function boot(){
     for(const id of first){ await buildChar(id,'P'); await yieldUI(); }
   }catch(err){ console.error(err); document.querySelector('#loading p').textContent='Could not load the characters. Reload to retry.'; throw err; }
   rollTeam(); layout(); resetMatch(); setMode('ready');
-  window.__dodge={spawnClone,killExtra,devJump,ensureInst,DEFS,dropHelmet,tutGo,startDash,derive,giveHelmet,addHelmet,rocks,dropRock,ninjaSwap,jpUnswap,ninjaTeleport,japanTurn,helmetAssets,launch,pillars,wizardCast,advanceStage,stageClear,setEnvKind,parkSpares,reviveFx,startRevive,finish,dancePose,danceTable,stoneBlocks,blockFor,blockHit,spawnMeteors,setDungeon,metGroup,sutiLook,spawnBooster,paintBar,skipDemo,enterSelect,startMatch,togglePick,quickStart,inst,makeRoster,derive,FILLER_IDS,POOL_IDS,beginMatch,get suti(){return suti;},hideAim,drawAim,placeHuman,idlePose,waveHi,walkPose,cheerPose,stunPose,koPose,mixPose,ARM_AIM,ARM_THROW,ARM_IDLE,qx,qy,qz,makeBall,makeGlow,get env(){return env},get arrow(){return arrow},ring,dots,S,update,startPlay,launch,aiThrow,finish,applyHit,all,get teamP(){return teamP;},get teamE(){return teamE;},camera,scene,renderer,get HW(){return HW;},spawnBooster,rollTeam,resetMatch,startTurn};
+  window.__dodge={JETM,JET,startBonus,bonusEnd,jetHit,spawnClone,killExtra,devJump,ensureInst,DEFS,dropHelmet,tutGo,startDash,derive,giveHelmet,addHelmet,rocks,dropRock,ninjaSwap,jpUnswap,ninjaTeleport,japanTurn,helmetAssets,launch,pillars,wizardCast,advanceStage,stageClear,setEnvKind,parkSpares,reviveFx,startRevive,finish,dancePose,danceTable,stoneBlocks,blockFor,blockHit,spawnMeteors,setDungeon,metGroup,sutiLook,spawnBooster,paintBar,skipDemo,enterSelect,startMatch,togglePick,quickStart,inst,makeRoster,derive,FILLER_IDS,POOL_IDS,beginMatch,get suti(){return suti;},hideAim,drawAim,placeHuman,idlePose,waveHi,walkPose,cheerPose,stunPose,koPose,mixPose,ARM_AIM,ARM_THROW,ARM_IDLE,qx,qy,qz,makeBall,makeGlow,get env(){return env},get arrow(){return arrow},ring,dots,S,update,startPlay,launch,aiThrow,finish,applyHit,all,get teamP(){return teamP;},get teamE(){return teamE;},camera,scene,renderer,get HW(){return HW;},spawnBooster,rollTeam,resetMatch,startTurn};
   window.dodgeReady=true;
   // the rest of the pool loads quietly while the title screen is showing
   (async()=>{ for(const id of POOL_IDS){ if(inst.P[id]) continue; await new Promise(r=>setTimeout(r,350)); try{ await ensureInst('P',id); }catch(e){ console.warn('dodge: could not load',id,e); } } })();
