@@ -5381,7 +5381,7 @@ function stepChars(dt){
       if(u>=1){ c.dash=null; c.x=D.tx; c.z=D.tz; c.wait=0.2; pickTarget(c); burst(c.x,0.25,c.z,8,0xd9f6ff); } return; }
     if(c.jmp){ c.jmp.t+=dt; c.vx=c.vz=0; if(c.jmp.t>=c.jmp.d){ c.jmp=null; burst(c.x,0.3,c.z,6,0xb7e68a); } return; }
     if(c.stun>0){ c.stun-=dt; c.vx=c.vz=0; return; }
-    if(S.mode==='play'&&!S.demo&&!(S.cd>0)&&!(S.tut&&S.tut.still)) stepChar(c,S.tut?dt*0.4:dt);
+    if(S.mode==='play'&&!S.demo&&!S.coin&&!(S.cd>0&&!S.cdMove)&&!(S.tut&&S.tut.still)) stepChar(c,S.tut?dt*0.4:dt);
   });
   // keep everybody apart (and away from the ones lying on the floor), then inside their half
   list.forEach(c=>{
@@ -6511,6 +6511,7 @@ function rollTeam(){                 // only the decorative squads of the title 
   teamP.concat(teamE).forEach(c=>applyEntry(c,{name:DEFS[c.id].n,spd:3,str:3,hp:3}));
 }
 function resetMatch(){
+  if(S.keepPos){ S.keepPos=false; return; }      // (after the coin: everybody stays exactly where they stood)
   purgeExtras(); clearHelmFx(); clearDashFx(); stopConf(); clearFire(); S.over=false; S.winner=null; S.overT=0; S.winT=0; S.loseT=0; S.turn=0; S.count={P:0,E:0}; S.bag={P:[],E:[]}; S.lastTh={P:null,E:null}; S.phase='none'; S.thrower=null; S.shake=0; S.auto=S.auto||false;
   if(S.ball){ killBall(S.ball); S.ball=null; }
   removeBooster(false); hideAim(); clearMeteors(); S.extra={P:0,E:0}; S.twice=false; S.revive=0; updateRevHud(); resetBlocks();
@@ -6531,7 +6532,7 @@ function resetMatch(){
 function paintBarQuiet(c){ c.bar.querySelector('.hb u').style.width=(c.hp/c.maxHp*100)+'%'; c.bar.classList.remove('sh','low'); c.bar.classList.toggle('P',c.team==='P'); c.bar.classList.toggle('E',c.team==='E'); }
 function startPlay(){ if(S.online&&(S.mode==='win'||S.mode==='lose')){ leaveOnline(); return; } enterSelect(); }
 function beginMatch(){ resetMatch(); if(S.boss&&S.run&&S.run.shieldStage===S.stage&&!S.bonus&&S.mode!=='ready') { const ex=teamP.filter(c=>!c.extra), c=ex.find(x=>x.id===S.run.shieldId)||ex[0]; if(c){ c.shield=true; paintBarQuiet(c); c.bar.classList.add('sh'); } } setMode('play'); audio(); S.demo=null; S.thrower=null; if(suti){ suti.wait=0; sutiPick(suti); } hideAim(); S.cd=3; S.cdN=4; }          // 3, 2, 1, GO! and then the first turn
-function stepCd(dt){ S.cd-=dt; if(S.cd>0){ const n=Math.ceil(S.cd); if(n!==S.cdN){ S.cdN=n; bigText(String(n),900,true); hsfx.turn(); } } else { S.cd=0; bigText('GO!',900,true); hsfx.go(); if(S.pendClone){ const pc=S.pendClone; S.pendClone=null; if(!pc.ko&&teamP.includes(pc)) spawnClone(pc,false,'biker'); } if(!S.guest) startTurn(); } }
+function stepCd(dt){ S.cd-=dt; if(S.cd>0){ const n=Math.ceil(S.cd); if(n!==S.cdN){ S.cdN=n; bigText(String(n),900,true); hsfx.turn(); } } else { S.cd=0; S.cdMove=false; bigText('GO!',900,true); hsfx.go(); if(S.pendClone){ const pc=S.pendClone; S.pendClone=null; if(!pc.ko&&teamP.includes(pc)) spawnClone(pc,false,'biker'); } if(!S.guest) startTurn(); } }
 /* ---- opening demo: a friend of yours winds up and throws at one of them, so the player sees how it works. Tap anywhere to skip ---- */
 function startDemo(){
   S.demo={phase:0,t:0,pw:0.5,dx:0,dz:-1,c:null,tg:null}; S.turn=0; S.side='P'; S.phase='demo'; S.thrower=null; suti.wait=99; sutiPark();
@@ -6819,10 +6820,10 @@ function netPrep(){        // online / co-op: everything the sync needs, ready f
   if(S.coop){ const T=S.coopTeam; teamP.forEach((c,i)=>{ c.human=T?T.own[i]:-1; const nm=c.bar.querySelector('.nm'); if(nm) nm.textContent=(c.human===S.slot?'▶ ':'')+(c.name||''); }); teamE.forEach(c=>{ c.human=-1; }); S.inp={}; }
 }
 function coinFlipDone(){
-  const n=S.net; if(n&&n.local&&!S.online){ S.barOn=true; barReset(); beginMatch(); return; }
+  const n=S.net; if(n&&n.local&&!S.online){ S.barOn=true; barReset(); S.keepPos=true; S.cdMove=true; beginMatch(); return; }
   if(!n||!S.online) return;
   if(!S.netOn) netPrep();
-  S.barOn=true; barReset(); beginMatch();
+  S.barOn=true; barReset(); S.keepPos=true; S.cdMove=true; beginMatch();
 }
 function sendSnap(extra){
   const ch=c=>[r2(c.x),r2(c.z),r2(c.yaw),r2(c.hp),(c.ko?1:0)|(c.shield?2:0)|(c.stun>0?4:0)|(c.wait>0?8:0)|(c.wave?16:0),r2(c.koYaw||0)];
@@ -6976,7 +6977,7 @@ const coopSalt=slot=>(0x1357AAAA+slot*0x1F3D5B79)|0;
 #dgJoy{ position:fixed; left:calc(env(safe-area-inset-left,0px) + 18px); bottom:calc(env(safe-area-inset-bottom,0px) + 30px); width:136px; height:136px; border-radius:50%; background:rgba(255,241,214,.2); box-shadow:0 0 0 4px rgba(59,43,79,.55) inset,0 0 0 3px rgba(255,241,214,.35); z-index:6; touch-action:none; display:none; pointer-events:none; opacity:.35; transition:opacity .12s; }
 #dgJoy.on{ opacity:1; }
 #dgJoyZ{ position:fixed; left:0; right:0; bottom:0; top:22%; z-index:5; touch-action:none; display:none; -webkit-user-select:none; user-select:none; }
-.dgb.nxt::after{ content:'NEXT'; position:absolute; left:50%; bottom:calc(100% + 3px); transform:translateX(-50%); padding:1px 6px; border-radius:99px; background:#f2c14e; color:#3b2b4f; font:900 11px/1.2 system-ui,sans-serif; letter-spacing:.06em; box-shadow:0 0 0 2px #3b2b4f; white-space:nowrap; animation:dgNx .6s ease-in-out infinite alternate; }
+.dgb.nxt::after{ content:'NEXT'; position:absolute; left:50%; bottom:calc(100% + 2px); transform:translateX(-50%); color:#ffd34a; font:900 13px/1 system-ui,sans-serif; letter-spacing:.08em; text-shadow:-1px -1px 0 #3b2b4f,1px -1px 0 #3b2b4f,-1px 1px 0 #3b2b4f,1px 1px 0 #3b2b4f,0 2px 0 #3b2b4f; white-space:nowrap; animation:dgNx .6s ease-in-out infinite alternate; }
 @keyframes dgNx{ from{ transform:translateX(-50%) translateY(0); } to{ transform:translateX(-50%) translateY(-3px); } }
 #dgJoy .k{ position:absolute; left:50%; top:50%; width:58px; height:58px; margin:-29px 0 0 -29px; border-radius:50%; background:var(--mustard,#f2c14e); box-shadow:0 0 0 4px var(--plum,#3b2b4f),0 5px 0 4px var(--plum,#3b2b4f); pointer-events:none; }
 `;
@@ -7099,7 +7100,7 @@ function humanMove(c,dt){
 function coopTick(dt){
   const jy=document.getElementById('dgJoy'); if(!jy) return;
   const me=teamP.find(c=>c.human===S.slot), throwing=!!(S.thrower&&S.thrower.human===S.slot&&S.phase==='hold');
-  const show=!!(me&&!me.ko&&S.mode==='play'&&!(S.cd>0)&&!throwing);
+  const show=!!(me&&!me.ko&&S.mode==='play'&&!S.coin&&(!(S.cd>0)||S.cdMove)&&!throwing);
   jy.style.display=show?'block':'none'; { const z=document.getElementById('dgJoyZ'); if(z) z.style.display=show?'block':'none'; } if(!show&&S.joyP&&window.__joyReset) window.__joyReset();
   { let nx=-1; if(S.mode==='play'&&S.coop){ if(!S.guest){ if(S.side==='E'&&!(S.cd>0)&&!S.over&&S.turn>0){ const t=nextThrower('P',true); nx=t?teamP.indexOf(t):-1; } else if(S.cd>0&&S.turn===0&&S.net&&S.net.first==='P1'){ nx=-1; } S.nx=nx; } else nx=(S.nxG==null?-1:S.nxG); }
     teamP.forEach((c,i)=>{ if(c.bar) c.bar.classList.toggle('nxt',i===nx&&!c.ko); }); }
