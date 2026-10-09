@@ -5306,6 +5306,7 @@ function pickTarget(c){
 }
 function pickFar(c){ const b=bounds(c); let best=null, bd=-1; for(let k=0;k<16;k++){ const x=rr(b.x0,b.x1), z=rr(b.z0,b.z1), sc=Math.hypot(x-c.x,z-c.z)+Math.abs(x)*0.5+Math.min(7,...squad(c.team).filter(o=>o!==c&&o.isGhost&&o.active&&!o.ko).map(o=>Math.hypot(x-o.tx,z-o.tz)).concat(7))*1.1; if(sc>bd){ bd=sc; best=[x,z]; } } c.tx=best[0]; c.tz=best[1]; }
 function stepChar(c,dt){      // erratic like Tero: changes its mind, stops dead, dashes, zig-zags
+  if(S.coop&&c.team==='P'&&c.human>=0){ humanMove(c,dt); return; }
   c.vx=0; c.vz=0;
   if(c.wait>0){ c.wait-=dt; return; }
   c.legT-=dt;
@@ -5526,14 +5527,14 @@ function stepJet(dt){
 const _jc=new THREE.Color();
 function startTurn(again){
   if(!again&&S.boss&&S.stage===1) jpUnswap();
-  if(!again){ S.turn++; S.side=(S.bonus||(S.turn+((S.online&&S.net&&S.net.first!==S.net.role)?1:0))%2===1)?'P':'E';
+  if(!again){ S.turn++; S.side=(S.bonus||(S.turn+((S.net&&S.net.first!==S.net.role)?1:0))%2===1)?'P':'E';
     if(!living(squad(S.side)).length){ S.phase='resolve'; S.phaseT=0; S.resolveDelay=1.0; S.twice=false; S.thrower=null; S.ball=null; hideAim(); $('score').textContent='Turn '+S.turn; return; } }       // everybody on this side is down (a revive is on its way): the turn is skipped
   S.phase='hold'; S.phaseT=0; S.lastTick=0; S.hitThisTurn=false; hideAim();
   const side=S.side, c=(again&&S.thrower&&!S.thrower.ko)?S.thrower:nextThrower(side); S.thrower=c; c.thr=-1; c.aimV=0.25;
   const isBoss=!!(S.boss&&side==='E'&&(c.id==='boss'||c.id==='samurai')), jpE=!!(S.boss&&side==='E'&&(S.stage===1||(S.stage===3&&c.id!=='boss'))), noBoost=isBoss||!!c.isGhost; let power=isBoss;
   if(!again){ S.count[side]++; S.twice=false; if(S.extra[side]>0){ S.extra[side]=0; S.twice=true; }
     if(!isBoss) power=(c.powerK>1)?(Math.random()<Math.min(1,POWER_CHANCE/3*c.powerK)):((S.count[side]%3===0)&&Math.random()<POWER_CHANCE);
-    if(S.boss&&S.stage===0&&side==='E'&&c.id==='biker'&&!S.dup&&!c.ko&&Math.random()<1/3) spawnClone(c,true);      // the Biker's turn: 1/3 to make a decoy of himself (only one at a time)
+    if(S.boss&&S.stage===0&&side==='E'&&c.id==='biker'&&!S.dup&&!c.ko&&!S.coop&&Math.random()<1/3) spawnClone(c,true);      // the Biker's turn: 1/3 to make a decoy of himself (only one at a time)
     if(S.boss&&S.stage===1&&side==='E'&&c.id==='samurai'&&Math.random()<0.5) S.twice=true; }      // Musashi: 50% a second ball
   S.ball=makeBall(side,c,power?2:1);
   if(!again){
@@ -5559,7 +5560,7 @@ function updateHud(power){
   $('score').textContent='Turn '+S.turn;
   const tb=$('dgTurn'); tb.className=S.side; tb.querySelector('.txt').textContent=S.side==='P'?'YOUR BALL':'ENEMY BALL'; tb.querySelector('.x2').style.display=(S.ball&&S.ball.mult>1)?'':'none';
   const hn=$('aimhint'); clearTimeout(hn._t);
-  if(S.side==='P'){ hn.textContent=S.turn===1?'Drag back to aim, let go to throw':'Your turn: drag back to aim, let go to throw'; hn.classList.add('on'); } else { hn.textContent=(S.boss&&S.thrower&&(S.thrower.id==='boss'||S.thrower.id==='samurai'))?'Boss turn: super ball incoming!':(S.online?'Your friend is aiming…':'Enemy turn: characters move automatically'); hn.classList.add('on'); hn._t=setTimeout(()=>hn.classList.remove('on'),1800); }
+  if(S.side==='P'&&S.coop&&!(S.thrower&&S.thrower.human===S.slot)){ hn.textContent=(S.thrower&&S.thrower.human>=0)?'Teammate is aiming…':'Your buddy is throwing…'; hn.classList.add('on'); hn._t=setTimeout(()=>hn.classList.remove('on'),1800); } else if(S.side==='P'){ hn.textContent=S.turn===1?'Drag back to aim, let go to throw':'Your turn: drag back to aim, let go to throw'; hn.classList.add('on'); } else { hn.textContent=(S.boss&&S.thrower&&(S.thrower.id==='boss'||S.thrower.id==='samurai'))?'Boss turn: super ball incoming!':(S.online?'Your friend is aiming…':'Enemy turn: characters move automatically'); hn.classList.add('on'); hn._t=setTimeout(()=>hn.classList.remove('on'),1800); }
 }
 function endTurn(delay){ if(S.demo){ S.demo.phase=3; S.demo.t=0; S.phase='none'; return; } S.phase='resolve'; S.phaseT=0; S.resolveDelay=delay; S.thrower.aimV=0; }
 const HOLD_MAX=10;
@@ -5582,7 +5583,7 @@ function stepFlow(dt){
       const sec=Math.ceil(left); if(left<=3&&sec!==S.lastTick&&sec>=1){ S.lastTick=sec; popup(String(sec),c.x,c.H+1.1,c.z); hsfx.pick&&hsfx.pick(); }
       if(left<=0) explodeHeld(c);
     }
-    if(((S.side==='E'&&!S.online)||S.auto)&&!S.demo&&S.phase==='hold'){ S.aiT+=dt; c.aimV=Math.min(0.95,0.25+0.7*S.aiT/S.aiDelay); if(S.aiT>=S.aiDelay) aiThrow(c); }
+    if(((S.side==='E'&&(!S.online||S.coop))||S.auto||(S.coop&&S.side==='P'&&!(c.human>=0)))&&!S.demo&&S.phase==='hold'){ S.aiT+=dt; c.aimV=Math.min(0.95,0.25+0.7*S.aiT/S.aiDelay); if(S.aiT>=S.aiDelay) aiThrow(c); }
   } else if(S.phase==='resolve'){
     if(S.phaseT>=S.resolveDelay){ if(S.over) finish(); else if(S.twice){ S.twice=false; startTurn(true); } else startTurn(); }
   }
@@ -6066,7 +6067,7 @@ function placeGlow(p,op){
 const aimCv=()=>$('aim');
 function wipeAim(){ const c=aimCv(); if(c){ c.width=c.width; } S.aimDirty=false; }          // resizing to itself resets the bitmap and the context state for good
 function hideAim(){ S.aim.on=false; S.aim.valid=false; dots.forEach(d=>d.visible=false); ring.visible=false; wipeAim(); }
-function canAim(){ return S.mode==='play' && !S.demo && !S.sent && S.phase==='hold' && S.side==='P' && !S.auto && S.thrower && S.thrower.thr<0 && (!S.tut||S.tut.sub==='play'||S.tut.sub==='free'); }
+function canAim(){ return S.mode==='play' && !S.demo && !S.sent && S.phase==='hold' && S.side==='P' && !S.auto && (!S.coop||(S.thrower&&S.thrower.human===S.slot)) && S.thrower && S.thrower.thr<0 && (!S.tut||S.tut.sub==='play'||S.tut.sub==='free'); }
 function aimUpdate(){
   const A=S.aim, vx=A.cx-A.sx, vy=A.cy-A.sy, len=Math.hypot(vx,vy);
   const maxD=Math.max(90,Math.min(window.innerWidth,window.innerHeight)*0.26);
@@ -6101,7 +6102,7 @@ function onDown(e){
   if(S.mode==='play'&&S.tut){ if(S.tut.sub==='demo'&&S.tut.skippable) tutSkipDemo(); else if(canAim()){ const A=S.aim; A.on=true; A.sx=A.cx=e.clientX; A.sy=A.cy=e.clientY; A.valid=false; A.power=0; } return; }
   if(S.mode==='play'&&S.demo){ skipDemo(); return; }
   if(S.victory) return;
-  if((S.mode==='win'||S.mode==='lose')){ if(S.overT>0.9){ if(S.mode==='lose'&&S.boss&&S.stage>=1) retryStage(); else startPlay(); } return; }
+  if((S.mode==='win'||S.mode==='lose')){ if(S.overT>0.9){ if(S.mode==='lose'&&S.boss&&S.stage>=1&&!S.coop) retryStage(); else startPlay(); } return; }
   if(S.mode==='play' && canAim()){ const A=S.aim; A.on=true; A.sx=A.cx=e.clientX; A.sy=A.cy=e.clientY; A.valid=false; A.power=0; }
 }
 function onMove(e){ const A=S.aim; if(!A.on||S.demo) return; A.cx=e.clientX; A.cy=e.clientY; aimUpdate(); if(S.guest) netAimSend(); }
@@ -6110,13 +6111,13 @@ function onUp(e){
   const ok=A.valid&&A.power>0.04&&canAim(); const dx=A.dx, dz=A.dz, pw=A.power; hideAim();
   if(ok){ if(S.guest) guestThrow(dx,dz,pw); else launch(S.thrower,dx,dz,pw); } else if(S.guest) netAimSend(0);
 }
-window.addEventListener('pointerdown',e=>{ if(!active||e.button>0||e.target.closest('#mute,#home,#dgSel,#dgMenuBtns,#dgTut,#dgOnline')) return; e.preventDefault(); onDown(e); },{passive:false});
+window.addEventListener('pointerdown',e=>{ if(!active||e.button>0||e.target.closest('#mute,#home,#dgSel,#dgMenuBtns,#dgTut,#dgOnline,#dgCoop,#dgJoy')) return; e.preventDefault(); onDown(e); },{passive:false});
 window.addEventListener('pointermove',e=>{ if(active) onMove(e); });
 window.addEventListener('pointerup',e=>{ if(active) onUp(e); });
 window.addEventListener('pointercancel',()=>{ if(active) hideAim(); });
 window.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('keydown',e=>{ if(active&&S.mode==='play'&&S.demo&&(e.code==='Space'||e.code==='Enter')){ e.preventDefault(); skipDemo(); } });
-window.addEventListener('keydown',e=>{ if(!active) return; if(S.victory){ if((e.code==='Space'||e.code==='Enter')&&S.victoryReady){ e.preventDefault(); toMainMenu(); } return; } if((e.code==='Space'||e.code==='Enter') && ((S.mode==='win'||S.mode==='lose')&&S.overT>0.9)){ e.preventDefault(); if(S.mode==='lose'&&S.boss&&S.stage>=1) retryStage(); else startPlay(); } });
+window.addEventListener('keydown',e=>{ if(!active) return; if(S.victory){ if((e.code==='Space'||e.code==='Enter')&&S.victoryReady){ e.preventDefault(); toMainMenu(); } return; } if((e.code==='Space'||e.code==='Enter') && ((S.mode==='win'||S.mode==='lose')&&S.overT>0.9)){ e.preventDefault(); if(S.mode==='lose'&&S.boss&&S.stage>=1&&!S.coop) retryStage(); else startPlay(); } });
 
 
 
@@ -6151,8 +6152,8 @@ body.tut #dgTut{ display:block; } #dgTurn, body.tut #dgTurn{ display:none !impor
 @keyframes dgBigA{ 0%{ transform:translate(-50%,-50%) scale(.3); opacity:0; } 14%{ transform:translate(-50%,-50%) scale(1.15); opacity:1; } 26%{ transform:translate(-50%,-50%) scale(1); } 80%{ opacity:1; } 100%{ opacity:0; } }
 `; document.head.appendChild(st);
   const bt=document.querySelector('#start .bottom'); if(bt&&!document.getElementById('dgMenuBtns')){ const m=document.createElement('div'); m.id='dgMenuBtns';
-    m.innerHTML='<button type="button" class="dgm t" data-a="tut">TUTORIAL</button><button type="button" class="dgm" data-a="game">GAME MODE</button><button type="button" class="dgm" data-a="boss">ARCADE MODE</button><button type="button" class="dgm" data-a="online">ONLINE MODE</button><button type="button" class="dgm" data-a="coop" disabled>CO-OP MODE <i>SOON</i></button><button type="button" class="dgm" data-a="creator" disabled>CHARACTER CREATOR <i>SOON</i></button>'; bt.insertBefore(m,bt.firstChild);
-    m.addEventListener('click',e=>{ const b=e.target.closest('.dgm'); if(!b||b.disabled) return; e.stopPropagation(); if(b.dataset.a==='tut') startTutorial(); else if(b.dataset.a==='online'){ audio(); openOnline(); } else if(b.dataset.a==='game'||b.dataset.a==='dog'||b.dataset.a==='boss'){ S.dog=(b.dataset.a==='dog'); S.boss=(b.dataset.a==='boss'); audio(); startPlay(); } }); }
+    m.innerHTML='<button type="button" class="dgm t" data-a="tut">TUTORIAL</button><button type="button" class="dgm" data-a="game">GAME MODE</button><button type="button" class="dgm" data-a="boss">ARCADE MODE</button><button type="button" class="dgm" data-a="online">ONLINE MODE</button><button type="button" class="dgm" data-a="coop">CO-OP MODE</button><button type="button" class="dgm" data-a="creator" disabled>CHARACTER CREATOR <i>SOON</i></button>'; bt.insertBefore(m,bt.firstChild);
+    m.addEventListener('click',e=>{ const b=e.target.closest('.dgm'); if(!b||b.disabled) return; e.stopPropagation(); if(b.dataset.a==='tut') startTutorial(); else if(b.dataset.a==='online'){ audio(); openOnline(); } else if(b.dataset.a==='coop'){ audio(); openCoop(); } else if(b.dataset.a==='game'||b.dataset.a==='dog'||b.dataset.a==='boss'){ S.dog=(b.dataset.a==='dog'); S.boss=(b.dataset.a==='boss'); audio(); startPlay(); } }); }
   if(!document.getElementById('dgTitleBg')){ const hero=document.querySelector('.card.dodge .hero'), bg=document.createElement('div'); bg.id='dgTitleBg'; if(hero){ const im=document.createElement('img'); im.alt=''; im.src=hero.src; bg.appendChild(im); } document.body.appendChild(bg); }
   if(!document.getElementById('dgTut')){ const t=document.createElement('div'); t.id='dgTut'; t.innerHTML='<div class="pl"><span>TUTORIAL</span><span class="d"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i><i>6</i></span></div><button type="button" class="x" aria-label="Close tutorial">✕</button>'; document.body.appendChild(t);
     t.querySelector('.x').addEventListener('click',e=>{ e.stopPropagation(); exitTutorial(); }); t.querySelector('.x').addEventListener('pointerdown',e=>e.stopPropagation()); }
@@ -6399,6 +6400,7 @@ function showLoad(){ let l=document.getElementById('dgLoad'); if(!l){ l=document
 function hideLoad(){ const l=document.getElementById('dgLoad'); if(l) l.classList.remove('on'); }
 function hideSel(){ const el=document.getElementById('dgSel'); if(el) el.classList.remove('on'); }
 async function enterSelect(st){
+  if(!(S.online&&S.net&&S.net.started)) S.net=null;
   st=S.boss?((st>=1&&S.run)?st:0):((st>=2&&S.run)?st:1); if(S.selBusy) return; S.selBusy=true;
   try{
     endBonusState(); stopConf(); hideAim(); setMode('select'); $('aimhint').classList.remove('on'); hideSel(); showLoad();
@@ -6410,7 +6412,7 @@ async function enterSelect(st){
     if(st===2&&!S.boss){ S.run.rosterP.forEach(e=>{ e.dead=false; }); S.sel.roster.P=S.run.rosterP; S.sel.sutiOn=true; S.sel.suti={P:true,E:true}; }          // GAME MODE, second match: your same six friends, a brand-new enemy team, and Suti joins in
     if(st>=1&&S.boss){ const run=S.run; run.rosterP.forEach(e=>{ e.dead=run.dead.has(e.id); }); S.sel.roster.P=run.rosterP; S.sel.roster.E=makeBossRoster(seed,st); S.sel.picks.E=S.sel.roster.E.slice(); S.sel.ready.E=true;
       S.sel.need=Math.max(1,Math.min(TEAM_SIZE,run.rosterP.filter(e=>!e.dead).length)); S.sel.sutiOn=!!S.sutiPref; S.sel.suti={P:!!S.sutiPref,E:!!S.sutiPref}; }
-    if(S.online&&S.net&&S.net.started){ const sd=S.net.seed|0, mine=(S.net.role==='P1')?(sd^0x1357AAAA):(sd^0x2468BBBB), theirs=(S.net.role==='P1')?(sd^0x2468BBBB):(sd^0x1357AAAA);
+    if(S.coop&&S.net&&S.net.started){ coopSelInit(); } else if(S.online&&S.net&&S.net.started){ const sd=S.net.seed|0, mine=(S.net.role==='P1')?(sd^0x1357AAAA):(sd^0x2468BBBB), theirs=(S.net.role==='P1')?(sd^0x2468BBBB):(sd^0x1357AAAA);
       S.sel.roster.P=makeRoster(mine,POOL_IDS,8); S.sel.roster.E=makeRoster(theirs,POOL_IDS,8); S.sel.online=true; S.sel.suti={P:false,E:false}; S.sel.sutiOn=false; S.sel.picks={P:[],E:[]}; S.sel.ready={P:false,E:false}; S.sel.seed=sd; S.sel.ai=1e9; }
     buildSel(); renderSel(); hideLoad();
     if(S.sel&&S.sel.online&&S.netQ&&S.netQ.length){ const q=S.netQ; S.netQ=[]; q.forEach(netIn); }
@@ -6441,15 +6443,15 @@ function buildSel(){
     const cd=e.target.closest('.cd'), sl=e.target.closest('.sl'), go=e.target.closest('.go'), su=e.target.closest('.su[data-s="P"]');
     if(su){ if(S.sel&&!S.sel.ready.P&&!S.sel.locked){ S.sel.suti.P=!S.sel.suti.P; hsfx.pick(); renderSel(); } } else if(cd&&cd.dataset.side==='P') togglePick(+cd.dataset.i); else if(sl){ const e2=S.sel&&S.sel.picks.P[+sl.dataset.k]; if(e2) togglePick(S.sel.roster.P.indexOf(e2)); } else if(go&&!go.disabled) confirmPicks();
   };
-  el.classList.toggle('online',!!sel.online); frameSel(); el.classList.add('on');
+  el.classList.toggle('online',!!sel.online); el.classList.toggle('coop',!!sel.coop); if(sel.coop) coopSelDom(el); frameSel(); el.classList.add('on');
 }
 function togglePick(i){
   const sel=S.sel; if(!sel||sel.ready.P||sel.starting) return; const e=sel.roster.P[i]; if(!e||e.dead) return; const k=sel.picks.P.indexOf(e);
   if(k>=0){ sel.picks.P.splice(k,1); hsfx.unpick(); } else if(sel.picks.P.length<(sel.need||TEAM_SIZE)){ sel.picks.P.push(e); hsfx.pick(); }        // a character can only be picked once per team
-  if(sel.online) netSend({k:'pick',ids:sel.picks.P.map(x=>x.id)});
+  if(sel.online){ if(sel.coop) coopPickOut(false); else netSend({k:'pick',ids:sel.picks.P.map(x=>x.id)}); }
   renderSel();
 }
-function confirmPicks(){ const sel=S.sel; if(!sel||sel.ready.P||sel.picks.P.length<(sel.need||TEAM_SIZE)) return; sel.ready.P=true; hsfx.turn(); if(sel.online) netSend({k:'ready',ids:sel.picks.P.map(x=>x.id),c:detectCountry()}); renderSel(); }
+function confirmPicks(){ const sel=S.sel; if(!sel||sel.ready.P||sel.picks.P.length<(sel.need||TEAM_SIZE)) return; sel.ready.P=true; hsfx.turn(); if(sel.online){ if(sel.coop) coopPickOut(true); else netSend({k:'ready',ids:sel.picks.P.map(x=>x.id),c:detectCountry()}); } renderSel(); }
 function autofill(side){ const sel=S.sel, free=shuffle(sel.roster[side].filter(e=>!e.dead&&!sel.picks[side].includes(e))); while(sel.picks[side].length<(side==='P'?(sel.need||TEAM_SIZE):TEAM_SIZE)&&free.length) sel.picks[side].push(free.pop()); }
 function aiPick(){ const sel=S.sel; autofillOne('E'); if(sel.picks.E.length>=TEAM_SIZE){ sel.ready.E=true; } renderSel(); }
 function autofillOne(side){ const sel=S.sel, free=sel.roster[side].filter(e=>!sel.picks[side].includes(e)); if(free.length&&sel.picks[side].length<TEAM_SIZE){ sel.picks[side].push(free[Math.floor(Math.random()*free.length)]); hsfx.pick(); } }
@@ -6462,6 +6464,7 @@ function renderSel(){
   });
   el.querySelectorAll('.sl').forEach((sl,k)=>{ sl.style.display=k<(sel.need||TEAM_SIZE)?'':'none'; const e=sel.picks.P[k]; sl.classList.toggle('f',!!e); sl.innerHTML=e?`<img alt="${e.name}" src="${portraitURL(e.id)}">`:''; });
   const go=el.querySelector('.go'); go.disabled=sel.ready.P||sel.picks.P.length<(sel.need||TEAM_SIZE); go.textContent=sel.ready.P?'WAITING…':'FIGHT!';
+  if(sel.coop) coopRenderMates();
 }
 function lockIn(){      // both sides are done: if the two players disagree about Suti, the computer flips a coin (seeded, so a server can do the same)
   const sel=S.sel; if(sel.locked) return; sel.locked=true;
@@ -6472,7 +6475,7 @@ function stepSelect(dt){
   if(sel.goT===undefined){
     sel.t=Math.max(0,sel.t-dt);
     if(!sel.online&&!sel.ready.E){ sel.ai-=dt; if(sel.ai<=0){ aiPick(); sel.ai=rr(0.8,1.9); } }          // the opponent picks one by one, in plain view
-    if(sel.online){ stepSelOnline(dt,sel); } else if(sel.t<=0){ autofill('P'); autofill('E'); sel.ready.P=sel.ready.E=true; lockIn(); sel.goT=0.9; }           // time is up: the computer completes whoever has not finished
+    if(sel.coop){ stepSelCoop(dt,sel); } else if(sel.online){ stepSelOnline(dt,sel); } else if(sel.t<=0){ autofill('P'); autofill('E'); sel.ready.P=sel.ready.E=true; lockIn(); sel.goT=0.9; }           // time is up: the computer completes whoever has not finished
     else if(sel.ready.P&&sel.ready.E){ lockIn(); sel.goT=0.5; }
   } else { sel.goT-=dt; if(sel.goT<=0){ sel.starting=true; startMatch(); } }
   const tm=document.querySelector('#dgSel .tm'); if(tm){ tm.firstChild.textContent=String(Math.ceil(sel.t)); tm.classList.toggle('hot',sel.t<=10&&sel.goT===undefined); }
@@ -6492,7 +6495,7 @@ async function startMatch(){
     if(S.boss&&st>=1) bigText('STAGE '+(st+1)+'!',1200);      // the next stage loads in the background
     S.country={P:detectCountry(),E:((S.online&&S.oppCountry&&FLAG_DRAW[S.oppCountry])?S.oppCountry:'SI')};            // (online: each player's real country; the fallback is Slovenia)
     setBanner(teamFlag(S.country.P,P.map(c=>c.nat)),teamFlag(S.country.E,E.map(c=>c.nat)));
-    hideSel(); if(S.online) onlineCourt(); else beginMatch();
+    hideSel(); if(S.online) onlineCourt(); else if(!S.tut) soloCoin(); else beginMatch();
   }catch(err){ console.error(err); sel.starting=false; sel.goT=undefined; }
 }
 async function quickStart(picksP,picksE){            // (tests / future "rematch"): select instantly and go
@@ -6599,7 +6602,7 @@ function retryStage(){ body.classList.remove('over'); stopConf(); teamP.concat(t
 function finish(){
   jpUnswap();
   if(S.tut){ tutComplete(); return; }
-  if(!S.online&&S.boss&&S.stage<3&&S.winner==='P'){ stageClear(); return; }
+  if((!S.online||S.coop)&&S.boss&&S.stage<3&&S.winner==='P'&&!(S.coop&&S.stage>=COOP_MAX_STAGE())){ stageClear(); return; }
   if(!S.online&&!S.boss&&!S.dog&&S.round===1&&S.winner==='P'){ stageClear(); return; }          // GAME MODE: win once and the next team is waiting
   S.over=false; S.phase='done'; removeBooster(false); clearMeteors();
   const won=(S.winner==='P'); teamP.concat(teamE).forEach(c=>{ c.celeb=(DEFS[c.id].isBoss||Math.random()<0.5)?0:1; c.cs=rr(0.8,1.3); c.ph0=Math.random()*6.28; }); hideAim(); S.thrower=null; $('aimhint').classList.remove('on');
@@ -6611,12 +6614,12 @@ function finish(){
   } else { hsfx.lose(); S.newBest=false; $('overTitle').textContent='You lose!'; $('overTitle').classList.remove('win'); }
   $('overTitle').classList.remove('long');
   $('statA').textContent='Turns'; $('statB').textContent='Best'; $('final').textContent=String(t); $('finalbest').textContent=S.best?String(S.best):'—'; $('newbest').classList.toggle('show',S.newBest);
-  if(won&&S.boss&&S.stage===3){ S.victory=true; S.victoryReady=false; setTimeout(showSaved,1500); return; }      // the pig is down: no results panel, the world is saved
+  if(won&&S.boss&&(S.stage===3||(S.coop&&S.stage>=COOP_MAX_STAGE()))){ S.victory=true; S.victoryReady=false; setTimeout(showSaved,1500); return; }      // the pig is down: no results panel, the world is saved
   setTimeout(()=>body.classList.add('over'),won?900:1100);
 }
 function showSaved(){
   if(!S.victory) return; let el=document.getElementById('dgSaved');
-  if(!el){ el=document.createElement('div'); el.id='dgSaved'; el.textContent='You saved the world!';
+  if(!el){ el=document.createElement('div'); el.id='dgSaved'; el.textContent=(S.coop&&S.stage<3)?'Co-op stage cleared! More stages coming soon…':'You saved the world!';
     el.style.cssText="position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 24px;background:rgba(0,0,0,0.93);opacity:0;transition:opacity 1.2s ease;cursor:pointer;font-weight:800;font-size:clamp(34px,10vw,76px);line-height:1.15;color:#f2c14e;-webkit-text-stroke:3px #3a1f4a;paint-order:stroke fill;text-shadow:0 6px 0 #3a1f4a;user-select:none;touch-action:manipulation";
     const go=e=>{ e.stopPropagation(); e.preventDefault(); if(S.victoryReady) toMainMenu(); };
     el.addEventListener('pointerdown',go); el.addEventListener('click',go); document.body.appendChild(el); }
@@ -6686,11 +6689,12 @@ function openOnline(){
    The server only relays: P1 (host) -> to_guest, P2 (guest) -> to_host. data.k says what it is: 'pick' / 'ready'. */
 function netSend(data){ const n=S.net; if(!n||!n.ws||n.ws.readyState!==1) return; try{ n.ws.send(JSON.stringify({type:n.role==='P1'?'to_guest':'to_host',data})); }catch(e){} }
 function netAttach(w){
-  w.onmessage=ev=>{ let m; try{ m=JSON.parse(ev.data); }catch(e){ return; } if(m.type==='from_host'||m.type==='from_guest') netIn(m.data); else if(m.type==='opponent_left') leaveOnline('YOUR FRIEND LEFT'); };
+  w.onmessage=ev=>{ let m; try{ m=JSON.parse(ev.data); }catch(e){ return; } if(m.type==='from_host'||m.type==='from_guest') netIn(m.data,m.slot); else if(m.type==='opponent_left') leaveOnline(S.coop?'HOST LEFT':'YOUR FRIEND LEFT'); else if(m.type==='player_left') coopLeft(m.slot); };
   w.onclose=()=>{ if(S.online&&S.net&&S.net.ws===w) leaveOnline('CONNECTION LOST'); };
 }
-function netIn(d){
+function netIn(d,slot){
   if(!d||!S.online) return;
+  if(S.coop){ coopIn(d,slot); return; }
   if(d.k==='s'||d.k==='aim'||d.k==='throw'){ netPlayIn(d); return; }
   if(typeof d.c==='string') S.oppCountry=d.c.slice(0,2).toUpperCase();
   if(d.k==='pick'||d.k==='ready'){
@@ -6701,7 +6705,7 @@ function netIn(d){
     renderSel();
   }
 }
-function dropOnline(){ if(coinG){ coinG.visible=false; if(coinSh) coinSh.visible=false; } fxClear(); S.coin=null; const n=S.net; S.online=false; S.net=null; S.netQ=[]; S.guest=false; S.netOn=false; S.evq=null; S.nb=0; S.sent=false; S.netAim=null; { const gb=document.getElementById('go-btn'); if(gb&&gb.textContent==='Back to menu') gb.textContent='Click or tap to try again'; } if(n&&n.ws){ try{ n.ws.onclose=null; n.ws.onmessage=null; n.ws.close(); }catch(e){} } }
+function dropOnline(){ if(coinG){ coinG.visible=false; if(coinSh) coinSh.visible=false; } fxClear(); S.coin=null; const n=S.net; S.online=false; S.net=null; S.netQ=[]; S.guest=false; S.coop=false; S.slot=0; S.coopTeam=null; S.coopS=null; S.joy=null; S.joyP=null; S.inp={}; { const jy=document.getElementById('dgJoy'); if(jy) jy.style.display='none'; } S.netOn=false; S.evq=null; S.nb=0; S.sent=false; S.netAim=null; { const gb=document.getElementById('go-btn'); if(gb&&gb.textContent==='Back to menu') gb.textContent='Click or tap to try again'; } if(n&&n.ws){ try{ n.ws.onclose=null; n.ws.onmessage=null; n.ws.close(); }catch(e){} } }
 function leaveOnline(msg){ if(!S.online) return; dropOnline(); hideSel(); hideLoad(); hideAim(); S.sel=null; toMainMenu(); if(msg) bigText(msg,2400,true); }
 function stepSelOnline(dt,sel){      // both players pick for 30 s; when time is up each client completes ITS OWN team and says so; the friend's late "ready" gets 4 s of grace
   if(sel.t<=0){
@@ -6755,7 +6759,7 @@ const clearance=ph=>COIN_R*Math.abs(Math.sin(ph))+COIN_T*Math.abs(Math.cos(ph));
 function coinLand(big){ fxRing(0,0,big?6.2:3.6,big?0.85:0.5,big?0.65:0.45); fxBurst(big?16:8,0,0.25,0,big?4.2:2.4,0.55,0.7,big?3.2:1.6,0xffd34a); S.shake=Math.max(S.shake,big?0.34:0.14); if(big) hsfx.turn&&hsfx.turn(); else hsfx.pick&&hsfx.pick(); }      // the camera gives a little shake when the coin hits the floor
 function startCoinFlip(){
   const n=S.net, R=mulberry32((n.seed|0)^0x0C014F11), heads=(n.first==='P1'), turns=3+Math.floor(R()*3), apex=4.6+R()*1.6, yaw=(R()-0.5)*0.9;
-  S.coin={ph:'intro',t:0,heads,spin:turns*2*Math.PI+(heads?0:Math.PI),apex,T:1.5,yaw,mine:(n.role==='P1'?'HEADS':'TAILS'),said:0,prevBar:S.barOn,hop:0,fx:0,flash:0};
+  S.coin={ph:'intro',t:0,heads,spin:turns*2*Math.PI+(heads?0:Math.PI),apex,T:1.5,yaw,mine:((n.role==='P1'||S.coop)?'HEADS':'TAILS'),said:0,prevBar:S.barOn,hop:0,fx:0,flash:0};
   S.barOn=false; coinG.visible=true; coinSh.visible=true; coinHalo.visible=true; coinG.position.set(0,COIN_T,0); coinG.rotation.set(0,yaw,0); coinSpin.rotation.set(-Math.PI/2,0,0); coinG.scale.setScalar(0.001);
   fxRing(0,0,4.8,0.7,0.7); fxBurst(12,0,0.6,0,2.6,0.5,0.8,2.2,0xffd34a);
   bigText('YOU ARE '+S.coin.mine+'!',1500,false); hsfx.pick&&hsfx.pick();
@@ -6771,7 +6775,7 @@ function stepCoin(dt){
     if(C.t>=D){ C.ph='show'; C.t=0; C.said=0; } }
   else if(C.ph==='show'){ ph=-C.spin; y=COIN_T; halo=0.28+0.1*Math.sin(C.t*5);
     if(C.said===0){ C.said=1; C.flash=1; fxBurst(30,0,1.0,0,5.4,0.65,1.0,3.6,0xffd34a); fxRing(0,0,7.6,0.8,0.85); bigText(C.heads?'HEADS!':'TAILS!',1100,false); hsfx.go&&hsfx.go(); }
-    if(C.said===1&&C.t>1.1){ C.said=2; const mine=(S.net.first===S.net.role); bigText(mine?'YOU START!':'ENEMY STARTS!',1500,false); }
+    if(C.said===1&&C.t>1.1){ C.said=2; const mine=S.coop?(S.net.first==='P1'):(S.net.first===S.net.role); bigText(mine?'YOU START!':'ENEMY STARTS!',1500,false); }
     if(C.t>2.7){ C.ph='out'; C.t=0; fxBurst(12,0,0.8,0,2.8,0.4,0.6,2,0xffffff); } }
   else if(C.ph==='out'){ ph=-C.spin; y=COIN_T; const u=ease(clamp(C.t/0.4,0,1)); sc=1-u; shadowK=sc; halo=0.28*(1-u);
     if(C.t>=0.4){ coinG.visible=false; coinSh.visible=false; coinHalo.visible=false; S.barOn=C.prevBar; S.coin=null; coinFlipDone(); return; } }
@@ -6781,26 +6785,33 @@ function stepCoin(dt){
   coinHalo.position.set(0,Math.max(y,0.9),0); const hs=COIN_D*(2.2+C.flash*1.4)*Math.max(0.05,sc); coinHalo.scale.set(hs,hs,1); coinHalo.material.opacity=Math.min(1,halo+C.flash*0.7);
 }
 
-/* ====================== ONLINE: playing (step 4d) ======================
-   The HOST (P1) runs the real game. The GUEST (P2) only draws what the host says: ~30 snapshots a second (everybody's position, hp, the ball, the booster, the bar)
-   plus the little events (popups, sparks, sounds). Everything is mirrored for the guest (x,z -> -x,-z, yaw + 180 deg, P <-> E), so each player sees HIS team at the bottom.
-   The guest's throw travels to the host as a mirrored direction + power; the host validates it and calls the same launch() as always. */
+/* ====================== ONLINE: playing (step 4d) + CO-OP (step 5) ======================
+   The HOST (P1 / slot 0) runs the real game. Everybody else only draws what the host says: ~30 snapshots a second (positions, hp, the ball, the booster, the bar)
+   plus the little events (popups, sparks, sounds).
+   1 vs 1: everything is mirrored for the guest (x,z -> -x,-z, yaw + 180 deg, P <-> E), so each player sees HIS team at the bottom.
+   CO-OP: up to 4 humans are ONE team (P) against the computer (E): nothing is mirrored. Each human walks his own character with a joystick (or WASD) and
+   only aims when it is his character's turn to throw; characters nobody controls are moved and thrown by the computer. */
 const IS_HOST=()=>!!(S.online&&S.net&&S.net.role==='P1');
 const r2=v=>Math.round(v*100)/100;
 const SWAPCOL={[0x35c14a]:0xe8302a,[0xe8302a]:0x35c14a};
+const gx=v=>S.coop?v:-v, gyaw=y=>S.coop?y:y+Math.PI, gside=sd=>S.coop?sd:(sd==='P'?'E':'P');
+const COOP_MAX_STAGE=()=>Math.min(3,(typeof window!=='undefined'&&window.DODGE_COOP_MAX!=null)?(+window.DODGE_COOP_MAX||0):0);       // stages 2-4 have special mechanics that are not synchronised yet
 function evRec(){ return (S.netOn&&S.evq&&S.mode==='play'&&!(S.cd>0)&&IS_HOST()&&S.evq.length<60)?S.evq:null; }
 {
   const _popup=popup; popup=function(t,x,y,z){ const q=evRec(); if(q) q.push(['p',t,r2(x),r2(y),r2(z)]); return _popup.apply(this,arguments); };
   const _burst=burst; burst=function(x,y,z,n,col){ const q=evRec(); if(q) q.push(['b',r2(x),r2(y),r2(z),n,col||0]); return _burst.apply(this,arguments); };
   const _fb=fireBurst; fireBurst=function(x,y,z,soft){ const q=evRec(); if(q) q.push(['f',r2(x),r2(y),r2(z),soft?1:0]); return _fb.apply(this,arguments); };
+  const _rvfx=reviveFx; reviveFx=function(x,z,A,B){ const q=evRec(); if(q) q.push(['r',r2(x),r2(z),A||0,B||0]); return _rvfx.apply(this,arguments); };
   Object.keys(hsfx).forEach(k=>{ const f=hsfx[k]; if(typeof f!=='function'||k==='go') return; hsfx[k]=function(){ const q=evRec(); if(q) q.push(['s',k]); return f.apply(this,arguments); }; });
   const _fin=finish; finish=function(){ if(IS_HOST()&&S.netOn&&S.mode==='play') sendSnap(['over',S.winner,S.turn]); const r=_fin.apply(this,arguments); if(S.online){ const gb=document.getElementById('go-btn'); if(gb) gb.textContent='Back to menu'; } return r; };
   const _launch=launch; launch=function(c,dx,dz,pw){ const was=S.phase; const r=_launch.apply(this,arguments); if(was==='hold'&&S.phase==='fly'){ const q=evRec(); if(q) q.push(['L',r2(dx),r2(dz)]); } return r; };
 }
 function coinFlipDone(){
-  const n=S.net; if(!n||!S.online) return;
-  S.guest=(n.role==='P2'); S.netOn=true; S.evq=[]; S.snapT=0; S.sent=false; S.netAim=null; S.nb=0; S.nbar=0; S.nid=0;
+  const n=S.net; if(n&&n.local&&!S.online){ S.barOn=true; barReset(); beginMatch(); return; }
+  if(!n||!S.online) return;
+  S.guest=S.coop?(S.slot>0):(n.role==='P2'); S.netOn=true; S.evq=[]; S.snapT=0; S.sent=false; S.netAim=null; S.nb=0; S.nbar=0; S.nid=0; S.nring=null; S.nav=0.25;
   teamP.concat(teamE).forEach(c=>{ c.nset=false; });
+  if(S.coop){ const T=S.coopTeam; teamP.forEach((c,i)=>{ c.human=T?T.own[i]:-1; const nm=c.bar.querySelector('.nm'); if(nm) nm.textContent=(c.human===S.slot?'▶ ':'')+(c.name||''); }); teamE.forEach(c=>{ c.human=-1; }); S.inp={}; }
   S.barOn=true; barReset(); beginMatch();
 }
 function sendSnap(extra){
@@ -6808,18 +6819,27 @@ function sendSnap(extra){
   const B=S.ball, T=S.thrower, bo=S.booster, A=S.aim;
   const inP=T?teamP.indexOf(T):-1;
   const m={k:'s',n:S.turn,sd:S.side,ph:S.phase,P:teamP.map(ch),E:teamE.map(ch),
-    th:T?(inP>=0?[0,inP]:[1,teamE.indexOf(T)]):0, sk:r2(S.shake), br:r2(bar.x),
+    th:T?(inP>=0?[0,inP]:[1,teamE.indexOf(T)]):0, sk:r2(S.shake), br:r2(bar.x), av:T?r2(T.aimV||0):0,
     b:B?[B.nid,B.team,B.mult,B.state,r2(B.x),r2(B.y),r2(B.z),r2(B.landT||0),r2(B.dx),r2(B.dz)]:0,
     bo:bo?[bo.type,bo.court,r2(bo.x),r2(bo.z),bo.born]:0};
-  if(S.side==='P'&&S.phase==='hold'&&A.on&&A.valid) m.ai=[r2(A.dx),r2(A.dz),r2(A.power)];
+  if(S.coop){ m.rg=S.ringP?teamP.indexOf(S.ringP):-1; m.rv=S.revive|0; }
+  if(S.phase==='hold'){
+    if(S.coop){ if(S.side==='P'){ if(T&&T.human===0){ if(A.on&&A.valid) m.ai=[r2(A.dx),r2(A.dz),r2(A.power)]; } else if(S.netAim&&S.t-S.netAim.t<0.6) m.ai=[r2(S.netAim.dx),r2(S.netAim.dz),r2(S.netAim.pw)]; } }
+    else if(S.side==='P'&&A.on&&A.valid) m.ai=[r2(A.dx),r2(A.dz),r2(A.power)];
+  }
   if(S.evq&&S.evq.length){ m.ev=S.evq; S.evq=[]; }
   if(extra){ (m.ev=m.ev||[]).push(extra); }
   netSend(m);
 }
 function netTick(dt){
   if(!S.netOn||!S.online||S.mode!=='play') return;
+  if(S.coop) coopTick(dt);
   if(IS_HOST()){
-    if(S.side==='E'&&S.phase==='hold'&&S.thrower){ const A=S.netAim; S.thrower.aimV=(A&&S.t-A.t<0.6)?0.25+0.7*A.pw:0.25; }
+    if(S.phase==='hold'&&S.thrower&&!S.demo){
+      const A=S.netAim, fresh=(A&&S.t-A.t<0.6);
+      if(S.coop){ if(S.side==='P'&&S.thrower.human>0) S.thrower.aimV=fresh?0.25+0.7*A.pw:0.25; }
+      else if(S.side==='E') S.thrower.aimV=fresh?0.25+0.7*A.pw:0.25;
+    }
     S.snapT-=dt; if(S.snapT<=0){ S.snapT=1/30; sendSnap(); }
   }
 }
@@ -6833,13 +6853,16 @@ function guestThrow(dx,dz,pw){
   if(c){ c.thr=0; c.faceT=0.5; c.faceYaw=Math.atan2(dx,dz); }
   $('aimhint').classList.remove('on');
 }
-function netPlayIn(d){
+function netPlayIn(d,slot){
   if(d.k==='s'){ if(S.guest) guestRecv(d); return; }
   if(!IS_HOST()) return;
-  if(d.k==='aim'){ if(S.side==='E'&&S.phase==='hold'){ S.netAim={dx:-(+d.dx||0),dz:-(+d.dz||0),pw:clamp(+d.pw||0,0,1),t:S.t}; } return; }
+  const sgn=S.coop?1:-1, who=S.coop?slot:1;
+  if(d.k==='mv'){ if(S.coop&&slot>0){ S.inp[slot]={x:clamp(+d.x||0,-1,1),z:clamp(+d.z||0,-1,1),t:performance.now()}; } return; }
+  const myTurn=S.coop?(S.side==='P'&&S.thrower&&S.thrower.human===slot):(S.side==='E');
+  if(d.k==='aim'){ if(myTurn&&S.phase==='hold'){ S.netAim={dx:sgn*(+d.dx||0),dz:sgn*(+d.dz||0),pw:clamp(+d.pw||0,0,1),t:S.t}; } return; }
   if(d.k==='throw'){
-    const c=S.thrower; if(!(S.mode==='play'&&S.phase==='hold'&&S.side==='E'&&c&&c.thr<0&&S.ball&&S.ball.state==='held'&&!(S.cd>0))) return;
-    const dx=-(+d.dx), dz=-(+d.dz), pw=clamp(+d.pw,0,1);
+    const c=S.thrower; if(!(S.mode==='play'&&S.phase==='hold'&&myTurn&&c&&c.thr<0&&S.ball&&S.ball.state==='held'&&!(S.cd>0))) return;
+    const dx=sgn*(+d.dx), dz=sgn*(+d.dz), pw=clamp(+d.pw,0,1);
     if(!isFinite(dx)||!isFinite(dz)||!isFinite(pw)||(!dx&&!dz)||pw<0.04) return;
     S.netAim=null; launch(c,dx,dz,pw);
   }
@@ -6847,40 +6870,44 @@ function netPlayIn(d){
 /* ---- guest side ---- */
 function guestBoosterMake(type,x,z){
   S.booster={type,court:'E',born:S.turn,x,z,tx:0,tz:0,vx:0,vz:0,legT:99,appear:0,fade:0,still:true,nx:x,nz:z};
-  boostGroup.visible=boostGlow.visible=boostWord.visible=(type==='shield'); boostX.visible=boostXGlow.visible=(type==='x2'); boostXWord.visible=false; boostH.visible=boostHGlow.visible=false; boostRing.visible=false;
+  if(type==='heart') ensureBoostHeart();
+  boostGroup.visible=boostGlow.visible=boostWord.visible=(type==='shield'); boostX.visible=boostXGlow.visible=(type==='x2'); boostXWord.visible=false; boostH.visible=boostHGlow.visible=(type==='heart'); boostRing.visible=false;
 }
 function guestRecv(m){
   if(S.mode!=='play'&&!m.ev) return;
   if(S.mode==='play'){
     if(m.n>0&&S.cd>0) S.cd=0;
-    const side=m.sd==='P'?'E':'P', th=m.th?(m.th[0]===0?teamE:teamP)[m.th[1]]:null;
+    const side=gside(m.sd), th=m.th?(((m.th[0]===0)===!!S.coop)?teamP:teamE)[m.th[1]]:null;
     if(m.n!==S.turn||side!==S.side||th!==S.thrower){ S.turn=m.n; S.side=side; S.thrower=th; S.phaseT=0; S.sent=false; S.netAim=null; hideAim(); if(th) th.thr=-1; if(m.n>0) updateHud(); }
     if(m.ph!==S.phase){ if(m.ph==='hold'){ S.sent=false; if(th) th.thr=-1; } S.phase=m.ph; S.phaseT=0; }
     const apply=(arr,tgt)=>{ tgt.forEach((d,i)=>{ const c=arr[i]; if(!c) return;
-      c.nx=-d[0]; c.nz=-d[1]; c.nyaw=d[2]+Math.PI; if(!c.nset){ c.x=c.nx; c.z=c.nz; c.yaw=c.nyaw; c.nset=true; }
+      c.nx=gx(d[0]); c.nz=gx(d[1]); c.nyaw=gyaw(d[2]); if(!c.nset){ c.x=c.nx; c.z=c.nz; c.yaw=c.nyaw; c.nset=true; }
       const f=d[4], hp=d[3], sh=!!(f&2);
       if(hp<c.hp) c.flash=0.25;
       const hpChg=(hp!==c.hp), shChg=(sh!==!!c.shield); c.hp=hp; c.shield=sh;
-      if((f&1)&&!c.ko){ c.ko=true; c.koT=0; c.stun=0; c.koYaw=d[5]+Math.PI; }
+      if((f&1)&&!c.ko){ c.ko=true; c.koT=0; c.stun=0; c.koYaw=gyaw(d[5]); }
+      else if(!(f&1)&&c.ko){ c.ko=false; c.koT=0; c.rv=null; c.gone=false; c.stun=0; c.h.g.visible=c.h.sh.visible=true; c.ring.visible=true; c.bar.style.visibility=''; }
       c.stun=(f&4)?1:0; c.wait=(f&8)?1:0; c.wave=!!(f&16);
       if(hpChg) paintBar(c); else if(shChg) paintBarQuiet(c);
     }); };
-    apply(teamE,m.P); apply(teamP,m.E);
-    if(m.bo){ const t=m.bo, x=-t[2], z=-t[3]; if(!S.booster||S.booster.type!==t[0]) guestBoosterMake(t[0],x,z); const b=S.booster; b.court=t[1]==='P'?'E':'P'; b.nx=x; b.nz=z; b.born=t[4]; }
+    if(S.coop){ apply(teamP,m.P); apply(teamE,m.E); } else { apply(teamE,m.P); apply(teamP,m.E); }
+    if(m.bo){ const t=m.bo, x=gx(t[2]), z=gx(t[3]); if(!S.booster||S.booster.type!==t[0]) guestBoosterMake(t[0],x,z); const b=S.booster; b.court=gside(t[1]); b.nx=x; b.nz=z; b.born=t[4]; }
     else if(S.booster) removeBooster(false);
-    S.nb=m.b||0; S.nbar=-m.br; S.shake=Math.max(S.shake,m.sk||0);
-    if(m.ai) S.netAim={dx:-m.ai[0],dz:-m.ai[1],pw:m.ai[2],t:S.t};
+    S.nb=m.b||0; S.nbar=gx(m.br); S.shake=Math.max(S.shake,m.sk||0); S.nav=m.av||0.25;
+    S.nring=(m.rg>=0)?teamP[m.rg]:null; if(m.rv!==undefined&&m.rv!==S.revive){ S.revive=m.rv; updateRevHud(); }
+    if(m.ai) S.netAim={dx:gx(m.ai[0]),dz:gx(m.ai[1]),pw:m.ai[2],t:S.t};
   }
   if(m.ev) m.ev.forEach(guestEv);
 }
 function guestEv(e){
   switch(e[0]){
-    case 'p': if(e[1]==='2nd shot!') bigText('SECOND SHOT!',1100); else popup(e[1],-e[2],e[3],-e[4]); break;
-    case 'b': burst(-e[1],e[2],-e[3],e[4],SWAPCOL[e[5]]||e[5]); break;
-    case 'f': fireBurst(-e[1],e[2],-e[3],!!e[4]); break;
+    case 'p': if(e[1]==='2nd shot!') bigText('SECOND SHOT!',1100); else popup(e[1],gx(e[2]),e[3],gx(e[4])); break;
+    case 'b': burst(gx(e[1]),e[2],gx(e[3]),e[4],S.coop?e[5]:(SWAPCOL[e[5]]||e[5])); break;
+    case 'f': fireBurst(gx(e[1]),e[2],gx(e[3]),!!e[4]); break;
+    case 'r': reviveFx(gx(e[1]),gx(e[2]),e[3]||undefined,e[4]||undefined); break;
     case 's': { const f=hsfx[e[1]]; if(f) f(); break; }
-    case 'L': { const c=S.thrower; if(c&&!S.sent){ c.thr=0; c.faceT=0.5; c.faceYaw=Math.atan2(-e[1],-e[2]); } break; }
-    case 'over': if(S.mode==='play'){ S.winner=other(e[1]); S.turn=e[2]; S.over=true; hideAim(); finish(); } break;
+    case 'L': { const c=S.thrower; if(c&&!S.sent){ c.thr=0; c.faceT=0.5; c.faceYaw=Math.atan2(gx(e[1]),gx(e[2])); } break; }
+    case 'over': if(S.mode==='play'){ S.winner=S.coop?e[1]:other(e[1]); S.turn=e[2]; S.over=true; hideAim(); finish(); } break;
   }
 }
 function guestChars(dt){
@@ -6901,19 +6928,20 @@ function guestFlow(dt){
   if(c){
     if(c.thr>=0){ c.thr+=dt/0.26; if(c.thr>1.4) c.thr=-1; } c.faceT=Math.max(0,c.faceT-dt);
     if(S.phase==='hold'&&!c.ko){
-      if(S.side==='P') c.aimV=(S.aim.on&&S.aim.valid)?0.25+0.7*S.aim.power:0.25;
-      else { const A=S.netAim; c.aimV=(A&&S.t-A.t<0.6)?0.25+0.7*A.pw:0.25; }
+      const mine=S.coop?(S.side==='P'&&c.human===S.slot):(S.side==='P');
+      if(mine) c.aimV=(S.aim.on&&S.aim.valid)?0.25+0.7*S.aim.power:0.25;
+      else { const A=S.netAim; c.aimV=(A&&S.t-A.t<0.6)?0.25+0.7*A.pw:(S.nav||0.25); }
     }
   }
 }
 function guestBall(dt){
   const n=S.nb; let B=S.ball;
   if(!n){ if(B){ killBall(B); S.ball=null; } return; }
-  const team=n[1]==='P'?'E':'P';
+  const team=gside(n[1]);
   if(!B||B.nid!==n[0]){ if(B) killBall(B); B=makeBall(team,S.thrower,n[2]); B.nid=n[0]; B.fresh=true; S.ball=B; if(n[2]>1) S.superT=1.5; updateHud(); }
-  B.state=n[3]; B.dx=-n[8]; B.dz=-n[9]; B.landT=n[7];
+  B.state=n[3]; B.dx=gx(n[8]); B.dz=gx(n[9]); B.landT=n[7];
   if(B.state==='held'){ B.fresh=true; return; }
-  const tx=-n[4], ty=n[5], tz=-n[6];
+  const tx=gx(n[4]), ty=n[5], tz=gx(n[6]);
   if(B.fresh){ B.x=tx; B.z=tz; B.fresh=false; }
   const k=1-Math.exp(-dt*30), vx=(tx-B.x)*k, vz=(tz-B.z)*k; B.x+=vx; B.z+=vz; B.y=ty;
   B.mesh.position.set(B.x,B.y,B.z); B.mesh.rotation.x+=vz/BALL_R; B.mesh.rotation.z-=vx/BALL_R;
@@ -6922,13 +6950,170 @@ function guestBall(dt){
   placeGlow(B,land?Math.max(0,1-B.landT/0.9):1); if(B.mult>1) trailFire(B,dt);
   B.sh.position.set(B.x,0.04,B.z); const ss=Math.max(0.4,0.7-(B.y-0.4)*0.25)*(sc/(BALL_R*big)); B.sh.scale.set(ss,ss,1);
 }
+
+/* ====================== CO-OP lobby, team select, movement ====================== */
+const coopSalt=slot=>(0x1357AAAA+slot*0x1F3D5B79)|0;
+(function(){
+  if(document.getElementById('dgCoopCss')) return;
+  const base=document.getElementById('dgOnlineCss'); const st=document.createElement('style'); st.id='dgCoopCss';
+  st.textContent=(base?base.textContent.split('#dgOnline').join('#dgCoop'):'')+`
+#dgCoop .code.cnt{ font-size:30px; letter-spacing:.04em; padding-left:0; color:var(--plum); -webkit-text-stroke:0; } #dgCoop .code.tmr{ font-size:52px; letter-spacing:.06em; padding-left:0; }
+#dgSel.coop .half.up .hr{ display:none; } #dgSel.coop .half.up .grid{ display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; padding:8px; overflow:hidden; }
+#dgSel .mt{ width:84px; text-align:center; color:var(--cream); font-weight:700; font-size:11px; letter-spacing:.04em; display:flex; flex-direction:column; align-items:center; gap:4px; }
+#dgSel .mt img,#dgSel .mt .ph{ width:58px; height:58px; border-radius:16px; background:rgba(255,241,214,.18); object-fit:cover; display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 0 0 3px rgba(255,241,214,.35); }
+#dgSel .mt.rd img,#dgSel .mt.rd .ph{ box-shadow:0 0 0 3px #7fe08a; }
+#dgJoy{ position:fixed; left:calc(env(safe-area-inset-left,0px) + 18px); bottom:calc(env(safe-area-inset-bottom,0px) + 30px); width:136px; height:136px; border-radius:50%; background:rgba(255,241,214,.2); box-shadow:0 0 0 4px rgba(59,43,79,.55) inset,0 0 0 3px rgba(255,241,214,.35); z-index:6; touch-action:none; display:none; }
+#dgJoy .k{ position:absolute; left:50%; top:50%; width:58px; height:58px; margin:-29px 0 0 -29px; border-radius:50%; background:var(--mustard,#f2c14e); box-shadow:0 0 0 4px var(--plum,#3b2b4f),0 5px 0 4px var(--plum,#3b2b4f); pointer-events:none; }
+`;
+  document.head.appendChild(st);
+  const d=document.createElement('div'); d.id='dgCoop';
+  d.innerHTML='<div class="box"><h2>CO-OP</h2><div class="st"></div><div class="code cnt"></div><div class="code tmr"></div><button type="button" class="dgm g back">BACK</button></div>';
+  document.body.appendChild(d);
+  // virtual joystick (touch / mouse) + WASD / arrows
+  const j=document.createElement('div'); j.id='dgJoy'; j.innerHTML='<div class="k"></div>'; document.body.appendChild(j);
+  const knob=j.firstChild, R=46, keys={}; let pid=null, cx=0, cy=0;
+  function refreshJoy(){ let x=0,z=0; if(S.joyP){ x=S.joyP.x; z=S.joyP.z; } const kx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0), kz=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0); if(kx||kz){ const l=Math.hypot(kx,kz); x=kx/l; z=kz/l; } S.joy={x,z}; }
+  function setJoy(px,py){ const dx=px-cx, dy=py-cy, l=Math.hypot(dx,dy)||1, m=Math.min(1,l/R); S.joyP={x:dx/l*m,z:dy/l*m}; knob.style.transform='translate('+(dx/l*m*R)+'px,'+(dy/l*m*R)+'px)'; refreshJoy(); }
+  j.addEventListener('pointerdown',e=>{ e.preventDefault(); e.stopPropagation(); pid=e.pointerId; try{ j.setPointerCapture(pid); }catch(_){} const r=j.getBoundingClientRect(); cx=r.left+r.width/2; cy=r.top+r.height/2; setJoy(e.clientX,e.clientY); });
+  j.addEventListener('pointermove',e=>{ if(e.pointerId===pid) setJoy(e.clientX,e.clientY); });
+  const up=e=>{ if(e.pointerId===pid){ pid=null; S.joyP=null; knob.style.transform=''; refreshJoy(); } };
+  j.addEventListener('pointerup',up); j.addEventListener('pointercancel',up);
+  const kd=down=>e=>{ if(!S.coop) return; const k=(e.key||'').toLowerCase(); if(!['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) return; keys[k]=down; refreshJoy(); if(S.mode==='play') e.preventDefault(); };
+  window.addEventListener('keydown',kd(true)); window.addEventListener('keyup',kd(false)); window.addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; refreshJoy(); });
+})();
+function openCoop(){
+  const root=document.getElementById('dgCoop'), st=root.querySelector('.st'), cnt=root.querySelector('.cnt'), tm=root.querySelector('.tmr');
+  let ws=null, iv=null, deadline=0, started=false;
+  const status=t=>{ st.textContent=t; };
+  const close=()=>{ clearInterval(iv); iv=null; try{ if(ws&&!started) ws.close(); }catch(e){} ws=null; if(!started) S.net=null; root.classList.remove('on'); };
+  const tick=()=>{ const s=Math.ceil(Math.max(0,deadline-Date.now())/1000); tm.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+  status('Connecting…'); cnt.textContent=''; tm.textContent=''; root.classList.add('on');
+  const w=new WebSocket(ONLINE_URL); ws=w;
+  const to=setTimeout(()=>{ if(w.readyState!==1){ status('Could not reach the server.'); try{ w.close(); }catch(e){} } },8000);
+  w.onopen=()=>{ clearTimeout(to); w.send(JSON.stringify({type:'coop_join'})); status('Joining…'); };
+  w.onerror=()=>{ status('Could not reach the server.'); };
+  w.onclose=()=>{ if(ws===w&&!started){ clearInterval(iv); status('Connection closed.'); } };
+  w.onmessage=ev=>{ let m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
+    if(m.type==='coop_lobby'){ deadline=Date.now()+m.left; cnt.textContent=m.n+' / '+m.max+' players'; status(m.n<2?'Waiting for players… (at least 2 needed)':'Starts when the timer ends, or when 4 are in.'); clearInterval(iv); iv=setInterval(tick,400); tick(); }
+    else if(m.type==='error'){ status(m.message||'Error'); try{ w.close(); }catch(e){} ws=null; }
+    else if(m.type==='coop_fail'){ clearInterval(iv); cnt.textContent=''; tm.textContent=''; status('Not enough players. Back to the menu…'); ws=null; try{ w.close(); }catch(e){} setTimeout(()=>root.classList.remove('on'),2400); }
+    else if(m.type==='coop_start'){ started=true; clearInterval(iv); S.net={ws:w,role:m.slot===0?'P1':'P2',slot:m.slot,n:m.n,seed:m.seed,first:null,started:true}; S.coop=true; S.slot=m.slot; S.oppCountry=null; S.netQ=[]; root.classList.remove('on'); netAttach(w); S.online=true; S.boss=true; S.dog=false; audio(); startPlay(); }
+  };
+  root.querySelector('.back').onclick=close;
+}
+function coopSelInit(){      // one fighter per human: 8 random cards each (everybody derives everybody's cards from the shared seed)
+  const sd=S.net.seed|0, sel=S.sel;
+  sel.bossRoster=sel.roster.E.slice();
+  sel.coop=true; sel.online=true; sel.roster.P=makeRoster((sd^coopSalt(S.slot))|0,POOL_IDS,8); sel.roster.E=[]; sel.picks={P:[],E:[]}; sel.ready={P:false,E:true};
+  sel.suti={P:false,E:false}; sel.sutiOn=false; sel.seed=sd; sel.need=1; sel.ai=1e9; sel.mates={picks:[],ready:[]};
+  S.coopS={picks:[],ready:[],gone:[],done:false,grace:0};
+}
+function coopSelDom(el){
+  const hb=el.querySelector('.half.up .hd b'); if(hb&&hb.firstChild) hb.firstChild.textContent='YOUR TEAMMATES';
+  const big=el.querySelector('.half.dn .hd b.big'); if(big&&big.firstChild) big.firstChild.textContent='PICK YOUR FIGHTER!';
+  const gd=el.querySelector('.grid[data-g="E"]'); if(gd) gd.innerHTML='<div class="mates" style="display:contents"></div>';
+  const rd=el.querySelector('.rdy[data-r="E"]'); if(rd) rd.style.display='none';
+}
+function coopRenderMates(){
+  const el=document.querySelector('#dgSel .mates'), sel=S.sel; if(!el||!sel||!S.net) return;
+  const M=sel.mates||{picks:[],ready:[]}, n=S.net.n||1; let h='';
+  for(let i=0;i<4;i++){ if(i===S.slot) continue; const human=i<n&&!(S.coopS&&S.coopS.gone[i]), id=M.picks[i];
+    h+='<div class="mt'+(M.ready[i]?' rd':'')+'">'+(id?'<img alt="" src="'+portraitURL(id)+'">':'<div class="ph">'+(human?'…':'AI')+'</div>')+'<span>'+(human?'PLAYER '+(i+1):'AI BUDDY')+'</span></div>'; }
+  el.innerHTML=h;
+}
+function coopPickOut(ready){
+  const sel=S.sel; if(!sel) return; const ids=sel.picks.P.map(x=>x.id);
+  if(S.slot===0) coopRecord(0,ids,ready); else netSend({k:'cp',ids,r:!!ready});
+}
+function coopRecord(slot,ids,ready){
+  const R=S.coopS; if(!R||R.done||!S.sel||R.ready[slot]) return;
+  R.picks[slot]=(ids&&ids[0])||null; if(ready) R.ready[slot]=true;
+  S.sel.mates={picks:R.picks.slice(),ready:R.ready.slice()}; netSend({k:'mates',picks:S.sel.mates.picks,ready:S.sel.mates.ready}); coopRenderMates();
+}
+function stepSelCoop(dt,sel){
+  if(sel.t<=0&&!sel.ready.P){ autofill('P'); sel.ready.P=true; coopPickOut(true); renderSel(); }
+  const R=S.coopS; if(S.slot===0&&R&&!R.done){
+    const n=S.net.n; let all=true; for(let i=0;i<n;i++) if(!R.ready[i]&&!R.gone[i]) all=false;
+    if(sel.t<=0&&!all) R.grace+=dt;
+    if(all||R.grace>4) coopFinalize();
+  }
+}
+function coopFinalize(){      // host: one character per human (no repeats), the computer fills the rest up to 4, and the coin is decided
+  const R=S.coopS; if(!R||R.done) return; R.done=true;
+  const sd=S.net.seed|0, n=S.net.n, used=new Set(), ids=[], own=[], ents=[];
+  for(let i=0;i<n;i++){
+    const ros=makeRoster((sd^coopSalt(i))|0,POOL_IDS,8); let e=null;
+    if(!R.gone[i]&&R.picks[i]) e=ros.find(x=>x.id===R.picks[i]&&!used.has(x.id));
+    if(!e) e=ros.find(x=>!used.has(x.id));
+    used.add(e.id); ids.push(e.id); own.push(R.gone[i]?-1:i); ents.push(e);
+  }
+  const fill=makeRoster((sd^0x5EED5EED)|0,POOL_IDS,12);
+  while(ids.length<4){ const e=fill.find(x=>!used.has(x.id)); used.add(e.id); ids.push(e.id); own.push(-1); ents.push(e); }
+  const msg={k:'team',ids,own,ents,first:Math.random()<0.5?'P1':'P2',E:S.sel.bossRoster};
+  netSend(msg); coopApplyTeam(msg);
+}
+function coopApplyTeam(m){
+  const sel=S.sel; if(!sel||sel.goT!==undefined) return;
+  S.coopTeam={ids:m.ids,own:m.own,ents:m.ents}; S.net.first=m.first;
+  sel.picks.P=m.ents.slice(); sel.picks.E=m.E.slice(); sel.roster.P=m.ents.slice(); sel.need=4; sel.ready.P=true; sel.stage=0; sel.boss=true; sel.goT=0.6;
+}
+function coopLeft(slot){
+  if(!S.coop) return;
+  if(S.coopS){ S.coopS.gone[slot]=true; if(S.slot===0&&!S.coopS.done) S.coopS.ready[slot]=true; }
+  if(S.inp) S.inp[slot]=null;
+  teamP.forEach(c=>{ if(c.human===slot){ c.human=-1; const nm=c.bar.querySelector('.nm'); if(nm) nm.textContent=(c.name||''); try{ popup('left',c.x,c.H+1.2,c.z); }catch(e){} } });
+  coopRenderMates();
+}
+function coopInput(slot){
+  if(slot===0) return S.joy||{x:0,z:0};
+  const I=S.inp&&S.inp[slot]; if(!I||performance.now()-I.t>700) return {x:0,z:0}; return I;
+}
+function humanMove(c,dt){
+  c.vx=0; c.vz=0;
+  if(S.thrower===c&&(S.phase==='hold'||c.thr>=0)){ c.wait=1; c.wave=false; return; }       // your turn to throw: you can aim, not move
+  const I=coopInput(c.human), m=Math.hypot(I.x,I.z);
+  if(m<0.1){ c.wait=1; c.wave=false; return; }
+  c.wait=0; const k=Math.min(1,m), sp=SPEED*c.spdK*1.15*k;
+  c.x+=I.x/m*sp*dt; c.z+=I.z/m*sp*dt; c.vx=I.x/m*sp; c.vz=I.z/m*sp; c.ph+=dt*11*c.spdK*k;
+  c.yaw+=angDiff(c.yaw,Math.atan2(I.x,I.z))*Math.min(1,dt*10);
+}
+function coopTick(dt){
+  const jy=document.getElementById('dgJoy'); if(!jy) return;
+  const me=teamP.find(c=>c.human===S.slot), throwing=!!(S.thrower&&S.thrower.human===S.slot&&S.phase==='hold');
+  const show=!!(me&&!me.ko&&S.mode==='play'&&!(S.cd>0)&&!throwing);
+  jy.style.display=show?'block':'none';
+  if(!show&&S.joy&&(S.joy.x||S.joy.z)&&!S.joyP){ /* keys keep working only while visible */ }
+  if(S.guest){
+    S.mvT=(S.mvT||0)-dt; const j=show?(S.joy||{x:0,z:0}):{x:0,z:0}, nz=!!(j.x||j.z);
+    if(S.mvT<=0&&(nz||S.mvSent)){ S.mvT=0.066; netSend({k:'mv',x:r2(j.x),z:r2(j.z)}); S.mvSent=nz; }
+  }
+}
+function coopIn(d,slot){
+  switch(d.k){
+    case 'cp': if(S.slot===0) coopRecord(slot,d.ids,!!d.r); break;
+    case 'mates': if(S.sel&&S.sel.coop){ S.sel.mates={picks:d.picks||[],ready:d.ready||[]}; coopRenderMates(); } break;
+    case 'team': if(S.slot>0) coopApplyTeam(d); break;
+    case 'stage': if(S.slot>0) coopStartStage(d.st,d.first); break;
+    default: netPlayIn(d,slot);
+  }
+}
+async function coopStartStage(st,first){      // (next stage) same team, new boss team; coin again
+  S.net.first=first; const T=S.coopTeam, ents=T.ents.slice();
+  S.sel={seed:S.net.seed|0,roster:{P:ents,E:[]},picks:{P:ents.slice(),E:makeBossRoster(0,st)},ready:{P:true,E:true},suti:{P:false,E:false},sutiOn:false,boss:true,locked:false,t:0,goT:0,starting:true,stage:st,need:4,online:true,coop:true};
+  await startMatch();
+}
+function coopNextStage(){
+  const st=S.stage+1, first=Math.random()<0.5?'P1':'P2'; netSend({k:'stage',st,first}); coopStartStage(st,first);
+}
 window.__dgnet={S,get teamP(){return teamP;},get teamE(){return teamE;},launch:(...a)=>launch(...a),applyHit:(...a)=>applyHit(...a),get bar(){return bar;}};
 
 async function onlineCourt(){      // both players stand on the court with their teams; the coin decides who throws first
-  try{ resetMatch(); setMode('play'); audio(); S.demo=null; S.thrower=null; S.phase='none'; S.cd=0; hideAim(); S.barOn=false; await ensureCoin(); if(S.online) startCoinFlip(); }catch(err){ console.error(err); }
+  try{ resetMatch(); setMode('play'); audio(); S.demo=null; S.thrower=null; S.phase='none'; S.cd=0; hideAim(); S.barOn=false; await ensureCoin(); if(S.online||(S.net&&S.net.local)) startCoinFlip(); }catch(err){ console.error(err); }
 }
 
 function toMainMenu(){          // back to the title screen with its menu buttons
+     if(S.coop&&S.online) dropOnline();
+     if(!S.online) S.net=null;
   const el=document.getElementById('dgSaved'); if(el){ el.style.opacity='0'; el.style.display='none'; }
   S.victory=false; S.victoryReady=false; S.stageClear=false; stopConf(); clearFire(); clearMeteors(); hideAim(); removeBooster(false);
   if(S.ball){ killBall(S.ball); S.ball=null; } endBonusState(); S.boss=false; S.run=null; setDungeon(false); sutiLook(false); setMode('ready'); S.phase='none'; S.thrower=null; rollTeam(); resetMatch(); layout();
@@ -7006,7 +7191,8 @@ function placeChar(c,dt){
     p.d.RightArm=throwerArm(c); p.d.RightForeArm=qx(-0.35*(1-c.aimV)-0.15);
     if(c.thr>=0||c.faceT>0) yawT=c.faceYaw;
     else if(S.side==='P'&&S.aim.on&&S.aim.valid) yawT=Math.atan2(S.aim.dx,S.aim.dz);
-    else if(S.online&&S.side==='E'&&S.netAim&&S.netAim.pw>0&&S.t-S.netAim.t<0.6) yawT=Math.atan2(S.netAim.dx,S.netAim.dz);
+    else if(S.coop&&S.side==='P'&&S.netAim&&S.netAim.pw>0&&S.t-S.netAim.t<0.6&&!(S.thrower&&S.thrower.human===S.slot)) yawT=Math.atan2(S.netAim.dx,S.netAim.dz);
+    else if(S.online&&!S.coop&&S.side==='E'&&S.netAim&&S.netAim.pw>0&&S.t-S.netAim.t<0.6) yawT=Math.atan2(S.netAim.dx,S.netAim.dz);
     else if(S.side==='E'||S.auto){ const foes=living(squad(other(side))); if(foes.length){ const f=foes.reduce((a,b)=>Math.hypot(a.x-c.x,a.z-c.z)<Math.hypot(b.x-c.x,b.z-c.z)?a:b); yawT=Math.atan2(f.x-c.x,f.z-c.z); } }
   }
   c.dyaw+=angDiff(c.dyaw,yawT)*Math.min(1,dt*(c.ko?30:14));
@@ -7030,7 +7216,7 @@ function placeChar(c,dt){
   }
 }
 function placeAll(dt){
-  S.ringP=null; if(S.boss&&S.mode==='play'&&!S.demo){ const t=S.thrower; S.ringP=(S.side==='P'&&t&&!t.ko)?t:(squad('P').some(c=>!c.ko)?nextThrower('P',true):null); }      // BOSS MODE: only the player's character who has (or is about to get) the ball keeps its ring
+  S.ringP=null; if(S.boss&&S.mode==='play'&&!S.demo){ const t=S.thrower; S.ringP=S.guest?(S.nring||null):((S.side==='P'&&t&&!t.ko)?t:(squad('P').some(c=>!c.ko)?nextThrower('P',true):null)); }      // BOSS MODE: only the player's character who has (or is about to get) the ball keeps its ring
   teamP.forEach(c=>placeChar(c,dt)); teamE.forEach(c=>placeChar(c,dt));
   // the ball in the thrower's hand
   const B=S.ball;
@@ -7144,7 +7330,7 @@ function update(dt){
     stepSelect(dt);
   } else if(m==='win'||m==='lose'){
     S.overT+=dt; stepChars(dt); stepBar(dt); stepSuti(dt); stepBooster(dt);
-    if(S.stageClear&&S.overT>2.8){ S.stageClear=false; if(S.boss&&S.stage===0&&!S.bonusDone) startBonus(); else enterSelect(S.boss?S.stage+1:2); }
+    if(S.stageClear&&S.overT>2.8){ S.stageClear=false; if(S.coop){ if(!S.guest) coopNextStage(); } else if(S.boss&&S.stage===0&&!S.bonusDone) startBonus(); else enterSelect(S.boss?S.stage+1:2); }
   }
   placeAll(dt); netTick(dt); stepScarves(dt); stepJet(dt); stepBlocks(dt); stepRocks(dt); stepHelmFx(dt); stepDashFx(dt); stepPillars(dt); stepRevFx(dt); animEnv(); placeTutHeart(dt); placeSuti(); placeBar(); placeSuper(dt); updateBits(dt); updateFire(dt); updateConf(dt);
   S.camPos.lerp(S.runPos,1-Math.exp(-dt*6)); S.camTgt.lerp(S.runTgt,1-Math.exp(-dt*6));
