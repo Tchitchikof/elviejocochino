@@ -6808,15 +6808,12 @@ function evRec(){ return (S.netOn&&S.evq&&S.mode==='play'&&!(S.cd>0)&&IS_HOST()&
   const _fin=finish; finish=function(){ if(IS_HOST()&&S.netOn&&S.mode==='play') sendSnap(['over',S.winner,S.turn]); const r=_fin.apply(this,arguments); if(S.online){ const gb=document.getElementById('go-btn'); if(gb) gb.textContent='Back to menu'; } return r; };
   const _launch=launch; launch=function(c,dx,dz,pw){ const was=S.phase; const r=_launch.apply(this,arguments); if(was==='hold'&&S.phase==='fly'){ const q=evRec(); if(q) q.push(['L',r2(dx),r2(dz)]); } return r; };
 }
-function idleLive(c,t){       // a living idle: breathing, weight shift, a slow look-around and loose arms; every character has its own speed and phase
+function idleLive(c,t){       // a living idle: the feet stay planted (legs and hips untouched), only the upper body breathes, sways and looks around; each character has its own speed and phase
   const k=0.8+((c.ph0*7.31)%1)*0.5, u=t*k+c.ph0*2.3, p=walkPose(0,0), d=p.d, sw=Math.sin(u*0.9+1.1), br=Math.sin(u*1.9);
-  d.Hips=qz(0.03*sw).multiply(qy(0.05*Math.sin(u*0.6+2)));
-  d.Spine=qx(0.02+0.022*br).multiply(qz(-0.02*sw));
+  d.Spine=qx(0.02+0.025*br).multiply(qz(-0.035*sw)).multiply(qy(0.06*Math.sin(u*0.6+2)));
   d.Head=qy(0.38*Math.sin(u*0.5+c.ph0)*Math.sin(u*0.23+1)).multiply(qx(0.05*Math.sin(u*0.7)));
-  d.LeftUpLeg=qx(0.05*sw); d.RightUpLeg=qx(-0.05*sw); d.LeftLeg=qx(0.04*Math.max(0,sw)); d.RightLeg=qx(0.04*Math.max(0,-sw));
   d.LeftArm=qx(0.07*Math.sin(u*1.9+0.6)).multiply(qz(-1.25+0.05*br)); d.RightArm=qx(-0.07*Math.sin(u*1.9+1.2)).multiply(qz(1.25-0.05*br));
   d.LeftForeArm=qx(-0.28-0.05*br); d.RightForeArm=qx(-0.28-0.05*Math.sin(u*1.9+0.8));
-  p.hips=new THREE.Vector3(0.006*sw,0.007*(0.5+0.5*br),0);
   return p;
 }
 function desyncSteps(){ teamP.concat(teamE).forEach(c=>{ c.ph=Math.random()*6.28; c.legT=Math.random()*0.5; }); }      // (nobody starts running in step with anybody else)
