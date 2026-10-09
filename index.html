@@ -6816,6 +6816,11 @@ function idleLive(c,t){       // a living idle: the feet stay planted (legs and 
   d.LeftForeArm=qx(-0.28-0.05*br); d.RightForeArm=qx(-0.28-0.05*Math.sin(u*1.9+0.8));
   return p;
 }
+function barGrow(c){      // the health bars grow from nothing to their full length when the 3-2-1 starts
+  const hb=c.bar.querySelector('.hb'); if(!hb) return; const g=S.barGrow0;
+  if(g==null||S.t-g>=0.9){ if(c._bgk!==1){ hb.style.width=''; hb.style.opacity=''; c._bgk=1; } return; }
+  const k=ease(clamp((S.t-g)/0.9,0,1)); c._bgk=k; hb.style.width='calc(var(--w,54px)*'+k.toFixed(3)+')'; hb.style.opacity=k<0.04?'0':'';
+}
 function desyncSteps(){ teamP.concat(teamE).forEach(c=>{ c.ph=Math.random()*6.28; c.legT=Math.random()*0.5; }); }      // (nobody starts running in step with anybody else)
 function soloCoin(){      // against the computer: the coin decides too (you are always HEADS)
   S.net={role:'P1',first:Math.random()<0.5?'P1':'P2',seed:(Math.random()*2147483647)|0,local:true}; S.online=false;
@@ -6829,10 +6834,10 @@ function netPrep(){        // online / co-op: everything the sync needs, ready f
   if(S.coop){ const T=S.coopTeam; teamP.forEach((c,i)=>{ c.human=T?T.own[i]:-1; const nm=c.bar.querySelector('.nm'); if(nm) nm.textContent=(c.human===S.slot?'▶ ':'')+(c.name||''); }); teamE.forEach(c=>{ c.human=-1; }); S.inp={}; }
 }
 function coinFlipDone(){
-  const n=S.net; if(n&&n.local&&!S.online){ S.barOn=true; barReset(); S.keepPos=true; S.cdMove=true; desyncSteps(); beginMatch(); return; }
+  const n=S.net; if(n&&n.local&&!S.online){ S.barOn=true; barReset(); S.keepPos=true; S.cdMove=true; desyncSteps(); S.noBars=false; S.barGrow0=S.t; beginMatch(); return; }
   if(!n||!S.online) return;
   if(!S.netOn) netPrep();
-  S.barOn=true; barReset(); S.keepPos=true; S.cdMove=true; desyncSteps(); beginMatch();
+  S.barOn=true; barReset(); S.keepPos=true; S.cdMove=true; desyncSteps(); S.noBars=false; S.barGrow0=S.t; beginMatch();
 }
 function sendSnap(extra){
   const ch=c=>[r2(c.x),r2(c.z),r2(c.yaw),r2(c.hp),(c.ko?1:0)|(c.shield?2:0)|(c.stun>0?4:0)|(c.wait>0?8:0)|(c.wave?16:0),r2(c.koYaw||0)];
@@ -7139,11 +7144,12 @@ function coopNextStage(){
 window.__dgnet={S,get teamP(){return teamP;},get teamE(){return teamE;},launch:(...a)=>launch(...a),applyHit:(...a)=>applyHit(...a),get bar(){return bar;}};
 
 async function onlineCourt(){      // both players stand on the court with their teams; the coin decides who throws first
-  try{ resetMatch(); setMode('play'); audio(); S.demo=null; S.thrower=null; S.phase='none'; S.cd=0; hideAim(); S.barOn=false; await ensureCoin(); if(S.online||(S.net&&S.net.local)) startCoinFlip(); }catch(err){ console.error(err); }
+  try{ resetMatch(); setMode('play'); audio(); S.demo=null; S.thrower=null; S.phase='none'; S.cd=0; hideAim(); S.barOn=false; S.noBars=true; await ensureCoin(); if(S.online||(S.net&&S.net.local)) startCoinFlip(); else S.noBars=false; }catch(err){ console.error(err); S.noBars=false; }
 }
 
 function toMainMenu(){          // back to the title screen with its menu buttons
      if(S.coop&&S.online) dropOnline();
+     S.noBars=false;
      if(!S.online) S.net=null;
   const el=document.getElementById('dgSaved'); if(el){ el.style.opacity='0'; el.style.display='none'; }
   S.victory=false; S.victoryReady=false; S.stageClear=false; stopConf(); clearFire(); clearMeteors(); hideAim(); removeBooster(false);
@@ -7263,11 +7269,11 @@ function placeAll(dt){
   arrow.visible=false;
   if(arrow.visible){ const c=S.thrower; arrow.position.set(c.x,c.H+1.75+Math.sin(S.t*6)*0.15,c.z-0.5); arrow.rotation.y=S.t*2.5; arrow.material.color.setHex(S.side==='P'?C_P:C_E); }
   // health bars follow the heads
-  const r=renderer.domElement.getBoundingClientRect(); const showBars=(S.mode==='play'||S.mode==='win'||S.mode==='lose');
+  const r=renderer.domElement.getBoundingClientRect(); const showBars=(S.mode==='play'||S.mode==='win'||S.mode==='lose')&&!S.noBars&&!S.coin;
   teamP.concat(teamE).forEach(c=>{
     if(!c.active||!showBars||c.hideBar||(c.ko&&c.koT>0.5&&!c.rv)){ if(c.bar.style.visibility!=='hidden') c.bar.style.visibility='hidden'; return; }
     _v.set(c.x,c.H+0.45,c.z).project(camera);
-    c.bar.style.visibility='visible'; c.bar.style.transform='translate('+(((_v.x*0.5+0.5)*r.width+r.left)|0)+'px,'+(((-_v.y*0.5+0.5)*r.height+r.top)|0)+'px) translate(-50%,-100%)';
+    c.bar.style.visibility='visible'; c.bar.style.transform='translate('+(((_v.x*0.5+0.5)*r.width+r.left)|0)+'px,'+(((-_v.y*0.5+0.5)*r.height+r.top)|0)+'px) translate(-50%,-100%)'; barGrow(c);
   });
 }
 /* "SUPER HIT" floats over whoever holds the x2 ball for 1.5 seconds */
