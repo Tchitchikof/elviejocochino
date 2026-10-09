@@ -6967,7 +6967,7 @@ const coopSalt=slot=>(0x1357AAAA+slot*0x1F3D5B79)|0;
 `;
   document.head.appendChild(st);
   const d=document.createElement('div'); d.id='dgCoop';
-  d.innerHTML='<div class="box"><h2>CO-OP</h2><div class="st"></div><div class="code cnt"></div><div class="code tmr"></div><button type="button" class="dgm g back">BACK</button></div>';
+  d.innerHTML='<div class="box"><h2>CO-OP</h2><div class="st"></div><div class="code cnt"></div><div class="code tmr"></div><button type="button" class="dgm vote" disabled>START NOW</button><button type="button" class="dgm g back">BACK</button></div>';
   document.body.appendChild(d);
   // virtual joystick (touch / mouse) + WASD / arrows
   const j=document.createElement('div'); j.id='dgJoy'; j.innerHTML='<div class="k"></div>'; document.body.appendChild(j);
@@ -6982,23 +6982,24 @@ const coopSalt=slot=>(0x1357AAAA+slot*0x1F3D5B79)|0;
   window.addEventListener('keydown',kd(true)); window.addEventListener('keyup',kd(false)); window.addEventListener('blur',()=>{ for(const k in keys) keys[k]=false; refreshJoy(); });
 })();
 function openCoop(){
-  const root=document.getElementById('dgCoop'), st=root.querySelector('.st'), cnt=root.querySelector('.cnt'), tm=root.querySelector('.tmr');
-  let ws=null, iv=null, deadline=0, started=false;
+  const root=document.getElementById('dgCoop'), st=root.querySelector('.st'), cnt=root.querySelector('.cnt'), tm=root.querySelector('.tmr'), vb=root.querySelector('.vote');
+  let ws=null, iv=null, deadline=0, started=false, voted=false;
   const status=t=>{ st.textContent=t; };
   const close=()=>{ clearInterval(iv); iv=null; try{ if(ws&&!started) ws.close(); }catch(e){} ws=null; if(!started) S.net=null; root.classList.remove('on'); };
   const tick=()=>{ const s=Math.ceil(Math.max(0,deadline-Date.now())/1000); tm.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
-  status('Connecting…'); cnt.textContent=''; tm.textContent=''; root.classList.add('on');
+  status('Connecting…'); cnt.textContent=''; tm.textContent=''; vb.disabled=true; vb.textContent='START NOW'; root.classList.add('on');
   const w=new WebSocket(ONLINE_URL); ws=w;
   const to=setTimeout(()=>{ if(w.readyState!==1){ status('Could not reach the server.'); try{ w.close(); }catch(e){} } },8000);
   w.onopen=()=>{ clearTimeout(to); w.send(JSON.stringify({type:'coop_join'})); status('Joining…'); };
   w.onerror=()=>{ status('Could not reach the server.'); };
   w.onclose=()=>{ if(ws===w&&!started){ clearInterval(iv); status('Connection closed.'); } };
   w.onmessage=ev=>{ let m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
-    if(m.type==='coop_lobby'){ deadline=Date.now()+m.left; cnt.textContent=m.n+' / '+m.max+' players'; status(m.n<2?'Waiting for players… (at least 2 needed)':'Starts when the timer ends, or when 4 are in.'); clearInterval(iv); iv=setInterval(tick,400); tick(); }
+    if(m.type==='coop_lobby'){ deadline=Date.now()+m.left; cnt.textContent=m.n+' / '+m.max+' players connected'; status(m.n<2?'Waiting for players… (at least 2 needed)':'Starts when the timer ends, when 4 are in, or when everybody votes.'); vb.disabled=m.n<2; vb.textContent=(m.voted?'VOTED ✓ ':'START NOW ')+'('+m.votes+'/'+m.n+')'; voted=!!m.voted; clearInterval(iv); iv=setInterval(tick,400); tick(); }
     else if(m.type==='error'){ status(m.message||'Error'); try{ w.close(); }catch(e){} ws=null; }
     else if(m.type==='coop_fail'){ clearInterval(iv); cnt.textContent=''; tm.textContent=''; status('Not enough players. Back to the menu…'); ws=null; try{ w.close(); }catch(e){} setTimeout(()=>root.classList.remove('on'),2400); }
     else if(m.type==='coop_start'){ started=true; clearInterval(iv); S.net={ws:w,role:m.slot===0?'P1':'P2',slot:m.slot,n:m.n,seed:m.seed,first:null,started:true}; S.coop=true; S.slot=m.slot; S.oppCountry=null; S.netQ=[]; root.classList.remove('on'); netAttach(w); S.online=true; S.boss=true; S.dog=false; audio(); startPlay(); }
   };
+  vb.onclick=()=>{ if(ws&&ws.readyState===1&&!vb.disabled) ws.send(JSON.stringify({type:'coop_vote',v:!voted})); };
   root.querySelector('.back').onclick=close;
 }
 function coopSelInit(){      // one fighter per human: 8 random cards each (everybody derives everybody's cards from the shared seed)
